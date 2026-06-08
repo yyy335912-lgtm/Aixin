@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>📋 审计日志</h1>
+  <p class="muted">
+    显示全部 <b>{{ queries|length }}</b> 条查询 / <b>{{ signoffs|length }}</b> 条签收 / <b>{{ mods|length }}</b> 条修改记录。
+    可勾选后批量删除，删除操作会写入修改日志留痕。
+  </p>
+
+  <!-- 查询记录 -->
+  <div class="card">
+    <h2>🔍 查询记录（全部 {{ queries|length }} 条）</h2>
+    {% if queries %}
+    <form id="queryBatchForm" method="post" action="{{ url_for('admin_log_query_batch_delete') }}"
+          onsubmit="return confirmBatch('query', '查询记录')">
+      <div class="batch-bar" id="queryBatchBar" style="display:none;">
+        <span><b id="querySelectedCount">0</b> 条已选中</span>
+        <button type="submit" class="btn btn-danger btn-sm">🗑️ 批量删除</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="clearSelection('query')">取消选择</button>
+      </div>
+      <div style="overflow-x:auto;">
+      <div class="table-responsive">
+    <table class="data-table compact">
+      <colgroup>
+        <col style="width:36px;">
+        <col style="width:160px;">
+        <col style="width:120px;">
+        <col style="width:140px;">
+        <col>
+        <col style="width:80px;">
+      </colgroup>
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="queryCheckAll" onchange="toggleAll('query', this.checked)"></th>
+          <th>时间</th>
+          <th>查询人</th>
+          <th>输入学号（脱敏）</th>
+          <th>关联社员</th>
+          <th class="center">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q in queries %}
+        <tr>
+          <td><input type="checkbox" name="ids" value="{{ q.id }}" class="query-row-check" onchange="updateBatchBar('query')"></td>
+          <td><span class="muted small">{{ q.query_time }}</span></td>
+          <td>{{ q.queryer_name or '—' }}</td>
+          <td><code class="small muted">{{ q.query_code[:3] + '****' + q.query_code[-2:] if q.query_code and q.query_code|length >= 6 else '***' }}</code></td>
+          <td>{% if q.query_member %}<b style="color:var(--primary-dark);">{{ q.query_member.name }}</b>{% else %}<span class="muted">未匹配</span>{% endif %}</td>
+          <td class="center">
+            <button type="button" class="btn btn-xs btn-danger"
+              onclick="singleDelete('query', {{ q.id }})">🗑️</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+      </div>
+    </form>
+    {% else %}<p class="empty">暂无查询记录</p>{% endif %}
+  </div>
+
+  <!-- 签收记录 -->
+  <div class="card">
+    <h2>✅ 签收记录（全部 {{ signoffs|length }} 条）</h2>
+    {% if signoffs %}
+    <form id="signoffBatchForm" method="post" action="{{ url_for('admin_log_signoff_batch_delete') }}"
+          onsubmit="return confirmBatch('signoff', '签收记录')">
+      <div class="batch-bar" id="signoffBatchBar" style="display:none;">
+        <span><b id="signoffSelectedCount">0</b> 条已选中</span>
+        <button type="submit" class="btn btn-danger btn-sm">🗑️ 批量删除</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="clearSelection('signoff')">取消选择</button>
+      </div>
+      <div style="overflow-x:auto;">
+      <div class="table-responsive">
+    <table class="data-table compact">
+      <colgroup>
+        <col style="width:36px;">
+        <col style="width:160px;">
+        <col>
+        <col style="width:120px;">
+        <col style="width:140px;">
+        <col style="width:80px;">
+      </colgroup>
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="signoffCheckAll" onchange="toggleAll('signoff', this.checked)"></th>
+          <th>签收时间</th>
+          <th>签收人</th>
+          <th>签收方式</th>
+          <th>关联学号（脱敏）</th>
+          <th class="center">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in signoffs %}
+        <tr>
+          <td><input type="checkbox" name="ids" value="{{ s.id }}" class="signoff-row-check" onchange="updateBatchBar('signoff')"></td>
+          <td><span class="muted small">{{ s.signoff_time }}</span></td>
+          <td><b style="color:var(--primary-dark);">{{ s.signoff_member.name if s.signoff_member else '?' }}</b></td>
+          <td><span class="muted small">{{ s.method }}</span></td>
+          <td><code class="small muted">{{ s.related_query_code[:3] + '****' + s.related_query_code[-2:] if s.related_query_code and s.related_query_code|length >= 6 else '***' }}</code></td>
+          <td class="center">
+            <button type="button" class="btn btn-xs btn-danger"
+              onclick="singleDelete('signoff', {{ s.id }})">🗑️</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+      </div>
+    </form>
+    {% else %}<p class="empty">暂无签收记录</p>{% endif %}
+  </div>
+
+  <!-- 修改记录 -->
+  <div class="card">
+    <h2>✏️ 修改记录（全部 {{ mods|length }} 条）</h2>
+    {% if mods %}
+    <form id="modBatchForm" method="post" action="{{ url_for('admin_log_modification_batch_delete') }}"
+          onsubmit="return confirmBatch('mod', '修改记录')">
+      <div class="batch-bar" id="modBatchBar" style="display:none;">
+        <span><b id="modSelectedCount">0</b> 条已选中</span>
+        <button type="submit" class="btn btn-danger btn-sm">🗑️ 批量删除</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="clearSelection('mod')">取消选择</button>
+      </div>
+      <div style="overflow-x:auto;">
+      <div class="table-responsive">
+    <table class="data-table compact">
+      <colgroup>
+        <col style="width:36px;">
+        <col style="width:160px;">
+        <col style="width:120px;">
+        <col style="width:120px;">
+        <col>
+        <col style="width:80px;">
+      </colgroup>
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="modCheckAll" onchange="toggleAll('mod', this.checked)"></th>
+          <th>时间</th>
+          <th>修改人</th>
+          <th>关联社员</th>
+          <th>明细</th>
+          <th class="center">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in mods %}
+        <tr>
+          <td><input type="checkbox" name="ids" value="{{ m.id }}" class="mod-row-check" onchange="updateBatchBar('mod')"></td>
+          <td><span class="muted small">{{ m.submit_time }}</span></td>
+          <td>{{ m.modifier or '—' }}</td>
+          <td>{% if m.mod_member %}<b style="color:var(--primary-dark);">{{ m.mod_member.name }}</b>{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td><pre class="muted small" style="margin:0; white-space:pre-wrap; word-break:break-word;">{{ m.details }}</pre></td>
+          <td class="center">
+            <button type="button" class="btn btn-xs btn-danger"
+              onclick="singleDelete('mod', {{ m.id }})">🗑️</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+      </div>
+    </form>
+    {% else %}<p class="empty">暂无修改记录</p>{% endif %}
+  </div>
+
+  <form id="singleDeleteForm" method="post" style="display:none;"></form>
+</section>
+
+<script>
+var prefixes = { query: 'query', signoff: 'signoff', mod: 'mod' };
+var endpoints = {
+  query: '{{ url_for("admin_log_query_delete", lid=0) }}',
+  signoff: '{{ url_for("admin_log_signoff_delete", lid=0) }}',
+  mod: '{{ url_for("admin_log_modification_delete", lid=0) }}'
+};
+
+function toggleAll(prefix, checked) {
+  document.querySelectorAll('.' + prefix + '-row-check').forEach(function(c) { c.checked = checked; });
+  updateBatchBar(prefix);
+}
+function updateBatchBar(prefix) {
+  var checked = document.querySelectorAll('.' + prefix + '-row-check:checked').length;
+  document.getElementById(prefix + 'SelectedCount').textContent = checked;
+  document.getElementById(prefix + 'BatchBar').style.display = checked > 0 ? 'flex' : 'none';
+  var all = document.querySelectorAll('.' + prefix + '-row-check');
+  var checkAll = document.getElementById(prefix + 'CheckAll');
+  checkAll.checked = checked === all.length && checked > 0;
+  checkAll.indeterminate = checked > 0 && checked < all.length;
+}
+function clearSelection(prefix) {
+  document.querySelectorAll('.' + prefix + '-row-check').forEach(function(c) { c.checked = false; });
+  document.getElementById(prefix + 'CheckAll').checked = false;
+  updateBatchBar(prefix);
+}
+function confirmBatch(prefix, label) {
+  var n = document.querySelectorAll('.' + prefix + '-row-check:checked').length;
+  if (n === 0) { alert('请先选择要删除的' + label); return false; }
+  return confirm('确定批量删除 ' + n + ' 条' + label + '吗？\n\n此操作不可恢复！');
+}
+function singleDelete(prefix, id) {
+  if (!confirm('确定删除这条记录？\n\n此操作不可恢复！')) return;
+  var f = document.getElementById('singleDeleteForm');
+  var url = endpoints[prefix];
+  f.action = url.replace('/0/', '/' + id + '/');
+  f.submit();
+}
+</script>
+{% endblock %}

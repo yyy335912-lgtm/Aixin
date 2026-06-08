@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>🚫 志愿者黑名单</h1>
+  <p class="muted">列入黑名单的社员将不会被匹配到（用于查询、统计时排除）</p>
+
+  <div class="card">
+    <h2>➕ 添加黑名单</h2>
+    <form method="post" action="{{ url_for('admin_blacklist_new') }}" class="form-inline">
+      <input type="text" name="name" placeholder="姓名" required>
+      <input type="text" name="reason" placeholder="原因" required style="min-width:280px; flex:1;">
+      <button class="btn btn-danger" type="submit">+ 加入黑名单</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>📋 黑名单（<b>{{ records|length }}</b>）</h2>
+    {% if records %}
+    <div style="overflow-x:auto;">
+    <div class="table-responsive">
+<table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:160px;">添加时间</th>
+          <th style="width:120px;">姓名</th>
+          <th>原因</th>
+          <th style="width:120px;" class="center">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in records %}
+        <tr>
+          <td><span class="muted small">{{ b.added_at }}</span></td>
+          <td><b>{{ b.name }}</b></td>
+          <td>
+            <span class="cell-2line" title="{{ b.reason }}">{{ b.reason }}</span>
+            {% if b.reason and b.reason|length > 30 %}
+              <a class="expand-btn" onclick='showPopover("黑名单原因 · {{ b.name|e }}", `{{ b.reason|e }}`)'>展开</a>
+            {% endif %}
+          </td>
+          <td class="center">
+            <form method="post" action="{{ url_for('admin_blacklist_delete', bid=b.id) }}" style="display:inline" onsubmit="return confirm('移出黑名单？')">
+              <button class="btn btn-xs btn-ghost" type="submit">✓ 移出</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+</div>
+    </div>
+    {% else %}
+    <p class="empty">🟢 黑名单为空</p>
+    {% endif %}
+  </div>
+</section>
+
+<div id="popoverContainer"></div>
+
+<script>
+function showPopover(title, content) {
+  const container = document.getElementById('popoverContainer');
+  container.innerHTML = `
+    <div class="popover-mask" onclick="closePopover()"></div>
+    <div class="popover">
+      <button class="close-btn" onclick="closePopover()">×</button>
+      <h3>🚫 ${title}</h3>
+      <p>${content}</p>
+    </div>
+  `;
+}
+function closePopover() { document.getElementById('popoverContainer').innerHTML = ''; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePopover(); });
+</script>
+{% endblock %}

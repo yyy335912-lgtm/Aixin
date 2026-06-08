@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}长期项目组小时数公布 · ZJU Club of Heart Caring{% endblock %}
+{% block content %}
+<section class="container">
+  <div class="pub-header">
+    <h1>🧡 长期项目组小时数公布</h1>
+    <p class="muted">数据来源：所有组员的 <b>活动参与 + 非常规活动 + 任职积分</b> 累计</p>
+    <p class="muted small">更新于 {{ now }} · 总公式：贡献积分 = A类小时数 × 1.0 + B类小时数 × 0.5</p>
+  </div>
+
+  {% if group_stats %}
+  <div class="group-grid">
+    {% for s in group_stats %}
+    <div class="group-card" style="border-top: 5px solid {{ s.group.color }};">
+      <div class="group-head">
+        <div>
+          <span class="lt-chip-2col" style="background:{{ s.group.color }}20; color:{{ s.group.color }}; border:1.5px solid {{ s.group.color }};"
+                title="{{ s.group.name }}">
+            {% for chunk in _pair_chunks(s.group.name, 2) %}
+              <span class="chunk">{{ chunk }}</span>
+            {% endfor %}
+          </span>
+          {% if s.group.description %}<span class="muted small" style="margin-left:8px;">{{ s.group.description }}</span>{% endif %}
+        </div>
+        <span class="muted small">👥 {{ s.member_count }} 人</span>
+      </div>
+      <div class="kpi-row" style="margin:12px 0;">
+        <div class="kpi" style="background:#f8fff9;"><span class="kpi-num" style="color:#2b8a3e;">{{ '%.1f'|format(s.a_hours) }}</span><span class="kpi-label">A类小时</span></div>
+        <div class="kpi" style="background:#fffef0;"><span class="kpi-num" style="color:#b08900;">{{ '%.1f'|format(s.b_hours) }}</span><span class="kpi-label">B类小时</span></div>
+        <div class="kpi" style="background:{{ s.group.color }}10;"><span class="kpi-num" style="color:{{ s.group.color }};">{{ '%.2f'|format(s.total_points) }}</span><span class="kpi-label">总积分</span></div>
+      </div>
+      {% if s.members %}
+      <details>
+        <summary class="muted small" style="cursor:pointer; padding:6px 0; user-select:none; color:{{ s.group.color }};">📋 组员明细（按积分排序）</summary>
+        <div style="overflow-x:auto;">
+        <div class="table-responsive">
+<table class="data-table compact" style="margin-top:6px;">
+          <thead>
+            <tr>
+              <th style="width:50px;" class="center">排名</th>
+              <th>姓名</th>
+              <th style="width:90px; background:#d3f9d8;" class="center">A类(h)</th>
+              <th style="width:90px; background:#fff3bf;" class="center">B类(h)</th>
+              <th style="width:110px;" class="center">贡献积分</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in s.members %}
+            <tr>
+              <td class="center">
+                {% if loop.index==1 %}🥇
+                {% elif loop.index==2 %}🥈
+                {% elif loop.index==3 %}🥉
+                {% else %}<span class="muted">{{ loop.index }}</span>
+                {% endif %}
+              </td>
+              <td><b style="color:var(--primary-dark);">{{ m.name }}</b></td>
+              <td class="center" style="background:#f8fff9;">{{ '%.1f'|format(m.a_hours()) }}</td>
+              <td class="center" style="background:#fffef0;">{{ '%.1f'|format(m.b_hours()) }}</td>
+              <td class="center"><b style="color:{{ s.group.color }};">{{ '%.2f'|format(m.total_points()) }}</b></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+</div>
+        </div>
+      </details>
+      {% else %}
+      <p class="muted small">暂无组员</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">尚未公布任何长期项目组数据</p>
+  {% endif %}
+
+  <p class="center" style="margin-top:24px;">
+    <a class="btn btn-ghost" href="{{ url_for('index') }}">← 返回首页</a>
+  </p>
+</section>
+
+<style>
+.pub-header { text-align: center; margin-bottom: 24px; }
+.pub-header h1 { color: var(--primary-dark); }
+.group-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .group-grid { grid-template-columns: 1fr; }
+}
+.group-card {
+  background: #fff;
+  border: 1px solid #ffd6e7;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: transform .2s;
+}
+.group-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(230,57,115,0.12); }
+.group-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 6px; }
+.lt-chip { padding: 3px 12px; border-radius: 12px; font-size: 14px; font-weight: 600; }
+.lt-chip-2col {
+  display: inline-grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 0 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  letter-spacing: 0;
+  font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+}
+.lt-chip-2col .chunk {
+  display: inline-block;
+  padding: 0 2px;
+}
+.container { max-width: 1100px; margin: 24px auto; padding: 0 18px; }
+</style>
+{% endblock %}

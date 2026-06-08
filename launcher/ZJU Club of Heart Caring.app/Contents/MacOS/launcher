@@ -1,0 +1,20 @@
+#!/bin/sh
+# ZJU Club of Heart Caring · 启动器
+# 1) 检查服务是否在 5050 端口运行；未运行则启动
+# 2) 在默认浏览器中打开本站
+APP_DIR="/Users/yanghairong/Desktop/爱心社积分系统"
+PORT=5050
+URL="http://localhost:${PORT}"
+
+# 检查端口
+if ! /usr/bin/lsof -i :${PORT} -P -n 2>/dev/null | grep -q LISTEN; then
+  # 启动 Flask（后台）
+  /usr/bin/osascript -e "display notification \"正在启动 ZJU Club of Heart Caring 服务...\" with title \"ZJU Club of Heart Caring\""
+  cd "${APP_DIR}"
+  nohup /opt/anaconda3/bin/python3 app.py > /tmp/aixin_flask.log 2>&1 &
+  # 等待 3 秒让服务起来
+  sleep 3
+fi
+
+# 打开浏览器
+open "${URL}"

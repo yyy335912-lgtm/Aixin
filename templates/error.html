@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} · 出错了{% endblock %}
+{% block content %}
+<section class="card narrow center">
+  <h1>😢 {{ code }}</h1>
+  <p>{{ msg }}</p>
+  <a class="btn btn-primary" href="{{ url_for('index') }}">返回首页</a>
+</section>
+{% endblock %}

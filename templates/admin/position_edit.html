@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>🎖️ 添加任职积分</h1>
+  <div class="card narrow">
+    <form method="post" class="form">
+      <div class="form-row">
+        <label>社员 <span class="req">*</span></label>
+        <select name="member_id" required>
+          <option value="">-- 选择社员 --</option>
+          {% for m in members %}
+          <option value="{{ m.id }}">{{ m.name }} - {{ m.department }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>职务 <span class="req">*</span></label>
+        <input type="text" name="position" required placeholder="例如：人资部部长">
+      </div>
+      <div class="form-row">
+        <label>所属部门</label>
+        <select name="department">
+          <option value="">-- 请选择 --</option>
+          {% for d in departments %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-row two-col-form">
+        <div>
+          <label>积分</label>
+          <input type="number" name="points" step="0.1" value="10" required>
+        </div>
+        <div>
+          <label>学期 <span class="req">*</span></label>
+          <input type="text" name="semester" value="{{ current_semester }}" required>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">保存</button>
+        <a class="btn btn-ghost" href="{{ url_for('admin_positions') }}">取消</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

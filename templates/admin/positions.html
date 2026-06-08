@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>🎖️ 任职积分</h1>
+  <p class="muted">社团内职务对应的额外积分（如部长、副部长、组员等）</p>
+
+  <div class="toolbar">
+    <form method="get" class="search-form">
+      <select name="semester" onchange="this.form.submit()">
+        <option value="">📅 全部学期</option>
+        <option value="25秋冬" {% if current_sem=='25秋冬' %}selected{% endif %}>25秋冬</option>
+        <option value="26春夏" {% if current_sem=='26春夏' %}selected{% endif %}>26春夏</option>
+        <option value="26秋冬" {% if current_sem=='26秋冬' %}selected{% endif %}>26秋冬</option>
+      </select>
+    </form>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn btn-primary" href="{{ url_for('admin_position_new') }}">➕ 手动录入</a>
+      <a class="btn btn-ghost" href="{{ url_for('admin_position_import') }}">📥 文件批量导入</a>
+    </div>
+  </div>
+
+  <div class="card">
+    {% if records %}
+    <div style="overflow-x:auto;">
+    <div class="table-responsive">
+<table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:100px;">学期</th>
+          <th>姓名</th>
+          <th>职务</th>
+          <th style="width:120px;">所属部门</th>
+          <th style="width:100px;" class="center">积分</th>
+          <th style="width:100px;" class="center">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td><span class="sem-tag">{{ r.semester }}</span></td>
+          <td><b style="color:var(--primary-dark);">{{ r.member.name }}</b></td>
+          <td>{{ r.position }}</td>
+          <td>{{ r.department or '—' }}</td>
+          <td class="center"><b style="color:var(--primary); font-size:15px;">{{ '%.1f'|format(r.points) }}</b></td>
+          <td class="center">
+            <form method="post" action="{{ url_for('admin_position_delete', pid=r.id) }}" style="display:inline" onsubmit="return confirm('删除该任职记录？')">
+              <button class="btn btn-xs btn-danger" type="submit">🗑️ 删除</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td colspan="4" class="center">合计（共 {{ records|length }} 条）</td>
+          <td class="center"><b>{{ '%.1f'|format(records|sum(attribute='points')) }}</b></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+</div>
+    </div>
+    {% else %}
+    <p class="empty">暂无任职记录，<a href="{{ url_for('admin_position_new') }}">立即录入第一条</a> →</p>
+    {% endif %}
+  </div>
+</section>
+
+<style>
+.sem-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fff5f8 0%, #ffe5ec 100%);
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 600;
+}
+</style>
+{% endblock %}

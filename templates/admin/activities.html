@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>📖 活动管理</h1>
+  <p class="muted">每场活动的日期、时间、地点与服务人数等基本信息；A/B 类小时数为参与者各自的实际贡献之和</p>
+
+  <div class="toolbar">
+    <form method="get" class="search-form">
+      <select name="project_id" onchange="this.form.submit()">
+        <option value="">📋 全部项目</option>
+        {% for p in projects %}
+        <option value="{{ p.id }}" {% if current_pid==p.id %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn btn-primary" href="{{ url_for('admin_activity_new') }}">➕ 手动录入</a>
+      <a class="btn btn-ghost" href="{{ url_for('admin_activity_import') }}">📥 文件批量导入</a>
+    </div>
+  </div>
+
+  <form id="batchForm" method="post" action="{{ url_for('admin_activity_batch_delete') }}"
+        onsubmit="return confirmBatchDelete()">
+    <div class="batch-bar" id="batchBar" style="display:none;">
+      <span><b id="selectedCount">0</b> 场活动已选中</span>
+      <button type="submit" class="btn btn-danger btn-sm">🗑️ 批量删除选中</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="clearSelection()">取消选择</button>
+    </div>
+
+    <div class="card">
+      {% if activities %}
+      <div class="table-responsive">
+      <table class="data-table activities-table">
+        <colgroup>
+          <col style="width:36px;">
+          <col style="width:48px;">
+          <col style="width:120px;">
+          <col style="width:100px;">
+          <col style="width:90px;">
+          <col style="min-width:140px;">
+          <col style="width:74px;">
+          <col style="width:78px;">
+          <col style="width:78px;">
+          <col style="width:74px;">
+          <col style="width:176px;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="checkAll" onchange="toggleAll(this.checked)"></th>
+            <th class="center">次序</th>
+            <th>项目</th>
+            <th class="center">日期</th>
+            <th class="center">时间</th>
+            <th>地点</th>
+            <th class="center">服务人数</th>
+            <th class="center" style="background:#d3f9d8;color:#2b8a3e;">A类(h)</th>
+            <th class="center" style="background:#fff3bf;color:#b08900;">B类(h)</th>
+            <th class="center">参与人数</th>
+            <th class="center">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in activities %}
+          <tr>
+            <td><input type="checkbox" name="ids" value="{{ a.id }}" class="row-check" onchange="updateBatchBar()"></td>
+            <td class="center nowrap">
+              <span class="num-badge n" title="{{ a.semester }} 第 {{ a.semester_seq() }} 次">{{ a.semester_seq() }}</span>
+            </td>
+            <td class="wrap-col" title="{{ a.project.name }}{% if a.content %} · {{ a.content }}{% endif %}">
+              <span class="proj-tag">{{ a.project.name }}</span>
+              {% if a.content %}
+              {% if a.project.name and a.content.startswith(a.project.name) %}
+                {% set note = a.content[a.project.name|length:] %}
+              {% else %}
+                {% set note = a.content %}
+              {% endif %}
+              <span class="content-note">{{ note }}</span>
+              {% endif %}
+            </td>
+            <td class="center nowrap" title="{{ a.date or '' }}">{{ a.date or '—' }}</td>
+            <td class="center nowrap" title="{{ a.time or '' }}">{{ a.time or '—' }}</td>
+            <td class="wrap-col" title="{{ a.location or '' }}">
+              {{ a.location or '—' }}
+              {% if a.location and a.location|length > 20 %}
+                <span class="expand-btn" onclick="event.preventDefault(); showPopover('📍 活动地点', `{{ a.location|replace('`', '\\`')|e }}`)">展开</span>
+              {% endif %}
+            </td>
+            <td class="center nowrap" style="background:#f8fff9;"><b>{{ a.served_count or 0 }}</b></td>
+            <td class="center nowrap" style="background:#f8fff9;"><b style="color:#2b8a3e;">{{ '%.1f'|format(a.total_a_hours()) }}</b></td>
+            <td class="center nowrap" style="background:#fffef0;"><b style="color:#b08900;">{{ '%.1f'|format(a.total_b_hours()) }}</b></td>
+            <td class="center nowrap"><span class="num-badge p">{{ a.participant_count() }}</span></td>
+            <td class="action-cell">
+              <div class="action-btns">
+                <a class="btn btn-xs" href="{{ url_for('admin_activity_detail', aid=a.id) }}" title="查看详情">👁</a>
+                <a class="btn btn-xs" href="{{ url_for('admin_activity_edit', aid=a.id) }}" title="编辑活动">✏️</a>
+                <button type="button" class="btn btn-xs btn-danger" title="删除活动"
+                  onclick="singleDelete({{ a.id }})">🗑️</button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="6" class="center">合计（{{ activities|length }} 场）</td>
+            <td class="center" style="background:#d3f9d8;"><b>{{ totals.served }}</b></td>
+            <td class="center" style="background:#d3f9d8;"><b style="color:#2b8a3e;">{{ '%.1f'|format(totals.a_hours) }}</b></td>
+            <td class="center" style="background:#fff3bf;"><b style="color:#b08900;">{{ '%.1f'|format(totals.b_hours) }}</b></td>
+            <td class="center"><b>{{ totals.participants }}</b></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+      </div>
+      {% else %}
+      <p class="empty">暂无活动，<a href="{{ url_for('admin_activity_new') }}">立即登记第一场活动</a> →</p>
+      {% endif %}
+    </div>
+  </form>
+
+  <form id="singleDeleteForm" method="post" style="display:none;"></form>
+  <div id="popoverContainer"></div>
+</section>
+
+<style>
+.activities-table { table-layout: fixed; width: 100%; }
+.activities-table thead th {
+  font-size: 12px; padding: 10px 6px; vertical-align: middle;
+}
+.activities-table tbody td {
+  padding: 8px 6px; vertical-align: middle;
+}
+.activities-table .nowrap {
+  white-space: nowrap;
+}
+.activities-table .wrap-col {
+  word-break: break-word; overflow-wrap: break-word;
+}
+.activities-table .content-note {
+  display: block; font-size: 11px; color: var(--text-muted);
+  line-height: 1.35; margin-top: 1px;
+}
+.activities-table .expand-btn {
+  font-size: 10px; cursor: pointer; color: var(--primary);
+  margin-left: 2px; white-space: nowrap;
+}
+.activities-table tbody .action-cell {
+  overflow: visible; padding: 6px 4px;
+}
+.activities-table tfoot td { white-space: normal; }
+.activities-table .proj-tag {
+  display: inline-block; font-weight: 600; font-size: 12px;
+}
+.data-table td { overflow: visible; }
+</style>
+
+<script>
+function toggleAll(checked) {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = checked);
+  updateBatchBar();
+}
+function updateBatchBar() {
+  const checked = document.querySelectorAll('.row-check:checked').length;
+  document.getElementById('selectedCount').textContent = checked;
+  document.getElementById('batchBar').style.display = checked > 0 ? 'flex' : 'none';
+  const all = document.querySelectorAll('.row-check');
+  document.getElementById('checkAll').checked = checked === all.length && checked > 0;
+  document.getElementById('checkAll').indeterminate = checked > 0 && checked < all.length;
+}
+function clearSelection() {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = false);
+  document.getElementById('checkAll').checked = false;
+  updateBatchBar();
+}
+function confirmBatchDelete() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  if (n === 0) { alert('请先选择要删除的活动'); return false; }
+  return confirm(`确定要批量删除 ${n} 场活动吗？\n\n此操作不可恢复！`);
+}
+function singleDelete(id) {
+  if (!confirm('确定删除该活动？此操作不可恢复！')) return;
+  const f = document.getElementById('singleDeleteForm');
+  f.action = '/admin/activities/' + id + '/delete';
+  f.submit();
+}
+function showPopover(title, content) {
+  const container = document.getElementById('popoverContainer');
+  container.innerHTML = `
+    <div class="popover-mask" onclick="closePopover()" style="z-index: 9998;"></div>
+    <div class="popover" style="z-index: 9999;">
+      <button class="close-btn" onclick="closePopover()" type="button" aria-label="关闭">×</button>
+      <h3>${title}</h3>
+      <p>${content}</p>
+    </div>
+  `;
+  document.body.style.overflow = 'hidden';
+}
+function closePopover() {
+  document.getElementById('popoverContainer').innerHTML = '';
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePopover(); });
+</script>
+{% endblock %}

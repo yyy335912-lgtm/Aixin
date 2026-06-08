@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>📥 活动参与名单 · 批量导入</h1>
+
+  <div class="card narrow">
+    <h2>📊 导入说明</h2>
+    <p>每行 = 一位参与者的记录。同一「项目 + 日期 + 地点 + 内容」的多行会自动合并为同一场活动。</p>
+    <p>每位参与者可填写 <b class="ab-a">A 类小时数</b>、<b class="ab-b">B 类小时数</b>，也可只填其一（同时填则两类都计分）。</p>
+    <p>
+      积分公式：<code>贡献积分 = A类小时数 × 1.0 + B类小时数 × 0.5</code>
+    </p>
+
+    <form method="post">
+      <input type="hidden" name="action" value="download_template">
+      <button class="btn btn-ghost" type="submit">📋 下载 Excel 模板</button>
+    </form>
+  </div>
+
+  <div class="card narrow">
+    <h2>① 上传文件</h2>
+    <form method="post" enctype="multipart/form-data" class="form">
+      <div class="form-row">
+        <label>选择文件 <span class="req">*</span></label>
+        <input type="file" name="file" accept=".xlsx,.xls,.csv" required>
+        <small class="muted">
+          必填列：<b>项目</b>、<b>姓名</b>，以及 <b>A类小时数</b> / <b>B类小时数</b> 至少一项。<br>
+          可选列：日期、时间、地点、活动内容、服务对象人数、学号、学期。<br>
+          社员匹配优先级：<b>学号</b> → <b>姓名</b>。
+        </small>
+      </div>
+      <div class="form-row">
+        <label>默认项目（若文件未填项目列）</label>
+        <select name="default_project_id">
+          <option value="">-- 不指定 --</option>
+          {% for p in projects %}
+          <option value="{{ p.id }}">{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-actions">
+        <input type="hidden" name="action" value="preview">
+        <button class="btn btn-primary" type="submit">📤 上传并预览</button>
+      </div>
+    </form>
+  </div>
+
+  {% if error %}
+  <div class="flash flash-danger">{{ error }}</div>
+  {% endif %}
+
+  {% if preview %}
+  <div class="card">
+    <h2>② 列对应与预览</h2>
+    <p class="muted">共解析到 <b>{{ preview.total }}</b> 行数据，预览前 20 行：</p>
+
+    <div class="table-scroll">
+      <div class="table-responsive">
+<table class="data-table compact">
+        <thead>
+          <tr>
+            {% for h in preview.headers %}
+            <th>{{ h or '(无标题)' }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in preview.rows %}
+          <tr>{% for v in r %}<td>{{ v }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+</div>
+    </div>
+
+    <form method="post" class="form">
+      <input type="hidden" name="action" value="confirm">
+
+      <h3>列对应</h3>
+      <div class="grid">
+        {% set field_choices = [
+          ('col_project', '项目', preview.mapping.get('project', -1), False),
+          ('col_date', '日期', preview.mapping.get('date', -1), False),
+          ('col_time', '时间', preview.mapping.get('time', -1), False),
+          ('col_location', '地点', preview.mapping.get('location', -1), False),
+          ('col_content', '活动内容', preview.mapping.get('content', -1), False),
+          ('col_served', '服务对象人数', preview.mapping.get('served_count', -1), False),
+          ('col_name', '姓名', preview.mapping.get('name', -1), True),
+          ('col_sid', '学号', preview.mapping.get('student_id', -1), False),
+          ('col_a_hours', 'A类小时数', preview.mapping.get('a_hours', -1), False),
+          ('col_b_hours', 'B类小时数', preview.mapping.get('b_hours', -1), False),
+          ('col_hours', '服务时长(旧)', preview.mapping.get('service_hours', -1), False),
+          ('col_semester', '学期', preview.mapping.get('semester', -1), False),
+        ] %}
+        {% for field_name, label, detected, required in field_choices %}
+        <div class="form-row">
+          <label>{{ label }}{% if required %} <span class="req">*</span>{% endif %}</label>
+          <select name="{{ field_name }}">
+            <option value="-1" {% if detected==-1 %}selected{% endif %}>-- 不导入 --</option>
+            {% for h in preview.headers %}
+            <option value="{{ loop.index0 }}" {% if detected==loop.index0 %}selected{% endif %}>第 {{ loop.index }} 列：{{ h or '(无标题)' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="form-row">
+        <label>默认项目（覆盖上方）</label>
+        <select name="default_project_id">
+          <option value="">-- 不指定（必须用文件中的项目列） --</option>
+          {% for p in projects %}
+          <option value="{{ p.id }}">{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">③ 确认导入</button>
+        <a class="btn btn-ghost" href="{{ url_for('admin_activity_import') }}">取消重来</a>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</section>
+
+<style>
+.ab-a { color:#2b8a3e; font-weight:700; }
+.ab-b { color:#b08900; font-weight:700; }
+.table-scroll { overflow-x: auto; }
+</style>
+{% endblock %}

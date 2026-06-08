@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>🌟 项目管理</h1>
+  <p class="muted">爱心社的品牌项目分类（活动在选择项目时确定 A/B 类型）· 共 <b>{{ projects|length }}</b> 个项目</p>
+
+  <div class="card">
+    <h2>➕ 添加项目</h2>
+    <form method="post" action="{{ url_for('admin_project_new') }}" class="form-inline" style="flex-wrap:wrap; gap:8px;">
+      <input type="text" name="name" placeholder="项目名称" required style="min-width:160px;">
+      <input type="text" name="description" placeholder="简介（可选）" style="min-width:280px; flex:1;">
+      <button class="btn btn-primary" type="submit">+ 添加</button>
+    </form>
+  </div>
+
+  <form id="batchDeleteForm" method="post" action="{{ url_for('admin_project_batch_delete') }}"
+        onsubmit="return confirmBatchDelete()">
+
+    <div class="batch-bar" id="batchBar" style="display:none;">
+      <span><b id="selectedCount">0</b> 个项目已选中</span>
+      <button type="submit" class="btn btn-danger btn-sm">🗑️ 批量删除</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="clearSelection()">取消选择</button>
+    </div>
+
+    <div class="card">
+      <h2>📋 已有项目（<b>{{ projects|length }}</b>）</h2>
+      <div style="overflow-x:auto;">
+      <div class="table-responsive">
+<table class="data-table" style="table-layout: fixed;">
+        <colgroup>
+          <col style="width:40px;">
+          <col style="width:130px;">
+          <col>
+          <col style="width:80px;">
+          <col style="width:90px;">
+          <col style="width:170px;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="checkAll" onchange="toggleAll(this.checked)"></th>
+            <th>项目名</th>
+            <th>简介</th>
+            <th class="center">活动数</th>
+            <th class="center">次序</th>
+            <th class="center">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in projects %}
+          <tr>
+            <td><input type="checkbox" name="ids" value="{{ p.id }}" class="row-check" onchange="updateBatchBar()"></td>
+            <td>
+              <b style="color:var(--primary-dark); white-space:nowrap;">{{ p.name }}</b>
+            </td>
+            <td>
+              {% if p.description %}
+                <div class="desc-wrap">
+                  <span class="desc-text" id="desc-{{ p.id }}">{{ p.description }}</span>
+                  <a class="expand-btn desc-toggle" data-target="desc-{{ p.id }}" style="display:none;">展开 ▾</a>
+                </div>
+              {% else %}
+                <span class="muted small">— 暂无简介 —</span>
+              {% endif %}
+            </td>
+            <td class="center"><span class="num-badge n">{{ p.activity_count() }}</span></td>
+            <td class="center"><span class="muted small">{{ loop.index }}</span></td>
+            <td>
+              <div class="action-btns" style="justify-content:center; flex-wrap:nowrap;">
+                <a class="btn btn-xs" href="{{ url_for('admin_project_edit', pid=p.id) }}">✏️ 编辑</a>
+                <button type="button" class="btn btn-xs btn-danger"
+                  onclick="singleDelete({{ p.id }}, '{{ p.name|e }}')">🗑️</button>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="empty">暂无项目</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+</div>
+      </div>
+    </div>
+  </form>
+
+  <form id="singleDeleteForm" method="post" style="display:none;"></form>
+</section>
+
+<style>
+.desc-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.55;
+  max-height: 3.1em;
+  word-break: break-word;
+}
+.desc-text.expanded {
+  -webkit-line-clamp: unset;
+  max-height: none;
+}
+.desc-toggle { font-size: 11px; cursor: pointer; color: var(--primary); white-space: nowrap; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.desc-text').forEach(function(el) {
+    if (el.scrollHeight > el.clientHeight) {
+      var toggle = el.nextElementSibling;
+      if (toggle && toggle.classList.contains('desc-toggle')) {
+        toggle.style.display = 'inline';
+      }
+    }
+  });
+  document.querySelectorAll('.desc-toggle').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(this.dataset.target);
+      var expanded = target.classList.toggle('expanded');
+      this.textContent = expanded ? '收起 ▴' : '展开 ▾';
+    });
+  });
+});
+function toggleAll(checked) {
+  document.querySelectorAll('.row-check').forEach(function(c) { c.checked = checked; });
+  updateBatchBar();
+}
+function updateBatchBar() {
+  var checked = document.querySelectorAll('.row-check:checked').length;
+  document.getElementById('selectedCount').textContent = checked;
+  document.getElementById('batchBar').style.display = checked > 0 ? 'flex' : 'none';
+  var all = document.querySelectorAll('.row-check');
+  document.getElementById('checkAll').checked = checked === all.length && checked > 0;
+  document.getElementById('checkAll').indeterminate = checked > 0 && checked < all.length;
+}
+function clearSelection() {
+  document.querySelectorAll('.row-check').forEach(function(c) { c.checked = false; });
+  document.getElementById('checkAll').checked = false;
+  updateBatchBar();
+}
+function confirmBatchDelete() {
+  var n = document.querySelectorAll('.row-check:checked').length;
+  if (n === 0) { alert('请先选择要删除的项目'); return false; }
+  return confirm('确定批量删除 ' + n + ' 个项目吗？\n\n注意：其下还有活动的项目会被自动跳过。');
+}
+function singleDelete(id, name) {
+  if (!confirm('确定删除项目【' + name + '】？')) return;
+  var f = document.getElementById('singleDeleteForm');
+  f.action = '/admin/projects/' + id + '/delete';
+  f.submit();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>🧡 长期项目组管理</h1>
+  <p class="muted">爱心社的 7 大长期项目组（心暖系列），用于统计各组累计小时数与积分</p>
+
+  <div class="card">
+    <h2>➕ 新增长期项目组</h2>
+    <form method="post" action="{{ url_for('admin_long_term_group_new') }}" class="form-inline" style="flex-wrap:wrap; gap:8px;">
+      <input type="text" name="name" placeholder="组名（如 心暖陇原）" required style="min-width:200px;">
+      <input type="text" name="description" placeholder="简介（选填）" style="min-width:280px; flex:1;">
+      <input type="color" name="color" value="#ff6b9d" title="标识色" style="width:50px; height:36px;">
+      <input type="number" name="sort_order" value="0" placeholder="排序" style="width:80px;">
+      <button class="btn btn-primary" type="submit">+ 添加</button>
+    </form>
+    <p class="muted small" style="margin-top:8px;">💡 添加后在「成员管理 → 编辑成员」中可将成员分配到该组。统计时累加该组所有成员的活动 + 非常规 + 任职小时数。</p>
+  </div>
+
+  <div class="card">
+    <h2>📋 长期项目组列表（<b>{{ group_stats|length }}</b>）</h2>
+    {% if group_stats %}
+    <div class="group-grid">
+      {% for s in group_stats %}
+      <div class="group-card" style="border-top: 5px solid {{ s.group.color }};">
+        <div class="group-head">
+          <div>
+            <span class="lt-chip-2col" style="background:{{ s.group.color }}20; color:{{ s.group.color }}; border:1.5px solid {{ s.group.color }};"
+                  title="{{ s.group.name }}">
+              {% for chunk in _pair_chunks(s.group.name, 2) %}
+                <span class="chunk">{{ chunk }}</span>
+              {% endfor %}
+            </span>
+            {% if not s.group.active %}<span class="status-badge off" style="margin-left:6px;">已停用</span>{% endif %}
+          </div>
+          <span class="muted small">排序 {{ s.group.sort_order }}</span>
+        </div>
+        {% if s.group.description %}
+          <p class="muted small" style="margin:6px 0;">
+            <span class="cell-2line" title="{{ s.group.description }}">{{ s.group.description }}</span>
+          </p>
+        {% endif %}
+        <div class="kpi-row" style="margin:10px 0;">
+          <div class="kpi"><span class="kpi-num" style="color:#2b8a3e;">{{ '%.1f'|format(s.a_hours) }}</span><span class="kpi-label">A类(h)</span></div>
+          <div class="kpi"><span class="kpi-num" style="color:#b08900;">{{ '%.1f'|format(s.b_hours) }}</span><span class="kpi-label">B类(h)</span></div>
+          <div class="kpi"><span class="kpi-num" style="color:{{ s.group.color }};">{{ '%.1f'|format(s.total_points) }}</span><span class="kpi-label">总积分</span></div>
+          <div class="kpi"><span class="kpi-num">{{ s.member_count }}</span><span class="kpi-label">组员</span></div>
+        </div>
+        {% if s.members %}
+        <details>
+          <summary class="muted small" style="cursor:pointer; padding:4px 0; user-select:none;">👥 组员列表（点击展开）</summary>
+          <ul class="member-mini-list">
+            {% for m in s.members[:8] %}
+            <li>{{ m.name }} · <b>{{ '%.1f'|format(m.total_points()) }}</b></li>
+            {% endfor %}
+            {% if s.members|length > 8 %}<li class="muted">… 等 {{ s.members|length }} 人</li>{% endif %}
+          </ul>
+        </details>
+        {% endif %}
+        <details style="margin-top:8px;">
+          <summary class="muted small" style="cursor:pointer; padding:4px 0; user-select:none;">⚙️ 编辑组信息</summary>
+          <form method="post" action="{{ url_for('admin_long_term_group_edit', gid=s.group.id) }}" class="form-inline" style="margin-top:8px; flex-wrap:wrap; gap:6px;">
+            <input type="text" name="name" value="{{ s.group.name }}" required style="min-width:140px;">
+            <input type="text" name="description" value="{{ s.group.description }}" placeholder="简介" style="min-width:200px; flex:1;">
+            <input type="color" name="color" value="{{ s.group.color }}" style="width:50px; height:36px;">
+            <input type="number" name="sort_order" value="{{ s.group.sort_order }}" style="width:70px;" title="排序">
+            <label class="muted small" style="display:flex; align-items:center; gap:4px;">
+              <input type="checkbox" name="active" value="1" {% if s.group.active %}checked{% endif %}> 启用
+            </label>
+            <button class="btn btn-sm" type="submit">保存</button>
+          </form>
+          <form method="post" action="{{ url_for('admin_long_term_group_delete', gid=s.group.id) }}" style="margin-top:8px;"
+                onsubmit="return confirm('删除组【{{ s.group.name }}】？\n\n关联成员的组归属会自动清空（成员本身不会删除）。')">
+            <button class="btn btn-xs btn-danger" type="submit">🗑️ 删除组</button>
+          </form>
+        </details>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="center" style="margin-top:18px;">
+      <a class="btn btn-ghost" href="{{ url_for('long_term_groups_public') }}" target="_blank">👁 在新标签查看公开公布页</a>
+    </p>
+    {% else %}
+    <p class="empty">还没有长期项目组，请先添加。</p>
+    {% endif %}
+  </div>
+</section>
+
+<style>
+.group-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+@media (max-width: 768px) {
+  .group-grid { grid-template-columns: 1fr; }
+}
+.group-card {
+  background: #fff;
+  border: 1px solid #ffd6e7;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  transition: transform .15s;
+}
+.group-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(230,57,115,0.1); }
+.group-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; gap: 8px; }
+.lt-chip { padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: 600; }
+.lt-chip-2col {
+  display: inline-grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 0 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  letter-spacing: 0;
+  font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+}
+.lt-chip-2col .chunk {
+  display: inline-block;
+  padding: 0 2px;
+}
+.member-mini-list { font-size: 13px; margin: 6px 0 0 16px; line-height: 1.7; }
+</style>
+{% endblock %}

@@ -1,0 +1,56 @@
+<aside class="sidebar">
+  <div class="sb-title">ZJU Club of Heart Caring</div>
+  <div class="sb-sub">浙江大学学生爱心社 · 后台</div>
+  <div class="sb-user">
+    <div class="sb-user-avatar">{{ (session.get('admin_name', '?')[0])|upper }}</div>
+    <div class="sb-user-info">
+      <b>{{ session.get('admin_name', '未登录') }}</b>
+      {% if session.get('is_super_admin') %}
+        <span class="sb-role sb-role-super">👑 超管</span>
+      {% else %}
+        <span class="sb-role">普管 · {{ _perm_label(me) if me and me.permissions_list() else '无权限' }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <nav>
+    {% if _has('dashboard') %}<a href="{{ url_for('admin_dashboard') }}" class="{% if request.endpoint=='admin_dashboard' %}active{% endif %}">🧡 后台首页</a>{% endif %}
+    {% if _has('members') %}<a href="{{ url_for('admin_members') }}" class="{% if 'member' in request.endpoint %}active{% endif %}">👥 成员管理</a>{% endif %}
+    {% if _has('projects') %}<a href="{{ url_for('admin_projects') }}" class="{% if 'project' in request.endpoint %}active{% endif %}">🌟 项目管理</a>{% endif %}
+    {% if _has('activities') %}<a href="{{ url_for('admin_activities') }}" class="{% if 'activit' in request.endpoint %}active{% endif %}">📖 活动管理</a>{% endif %}
+    {% if _has('positions') %}<a href="{{ url_for('admin_positions') }}" class="{% if 'position' in request.endpoint %}active{% endif %}">🎖️ 任职积分</a>{% endif %}
+    {% if _has('irregulars') %}<a href="{{ url_for('admin_irregulars') }}" class="{% if 'irregular' in request.endpoint %}active{% endif %}">✦ 非常规活动</a>{% endif %}
+    {% if _has('long_term_groups') %}<a href="{{ url_for('admin_long_term_groups') }}" class="{% if 'long_term' in request.endpoint %}active{% endif %}">🧡 长期项目组</a>{% endif %}
+    {% if _has('blacklist') %}<a href="{{ url_for('admin_blacklist') }}" class="{% if 'blacklist' in request.endpoint %}active{% endif %}">🚫 黑名单</a>{% endif %}
+    {% if _has('stats') %}<a href="{{ url_for('admin_stats') }}" class="{% if 'stats' in request.endpoint %}active{% endif %}">📈 数据统计</a>{% endif %}
+    {% if _has('logs') %}<a href="{{ url_for('admin_logs') }}" class="{% if 'logs' in request.endpoint %}active{% endif %}">📋 审计日志</a>{% endif %}
+    {% if _has('export') %}<a href="{{ url_for('admin_export') }}">📤 导出 Excel</a>{% endif %}
+    {% if session.get('is_super_admin') %}
+    <a href="{{ url_for('admin_whitelist') }}" class="{% if 'whitelist' in request.endpoint %}active{% endif %} sb-super">⚡ 白名单管理</a>
+    {% endif %}
+    {% if _has('profile') %}<a href="{{ url_for('admin_profile') }}" class="{% if 'profile' in request.endpoint %}active{% endif %}">⚙️ 我的资料</a>{% endif %}
+    {% if _has('settings') %}<a href="{{ url_for('admin_settings') }}" class="{% if 'settings' in request.endpoint %}active{% endif %}">🔧 系统设置</a>{% endif %}
+    <a href="{{ url_for('admin_logout') }}" class="sb-logout">🚪 退出登录</a>
+  </nav>
+</aside>
+
+<style>
+.sb-user {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; background: linear-gradient(135deg, #fff5f8, #ffe5ec);
+  border-radius: 10px; margin: 10px 0;
+}
+.sb-user-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700;
+  flex-shrink: 0;
+}
+.sb-user-info { flex: 1; min-width: 0; font-size: 13px; line-height: 1.4; }
+.sb-user-info b { display: block; color: var(--primary-dark); font-size: 14px; }
+.sb-role { display: inline-block; padding: 1px 6px; border-radius: 8px; background: #e9ecef; color: #555; font-size: 11px; font-weight: 600; }
+.sb-role-super { background: linear-gradient(135deg, #ffd700, #ffaa00); color: #fff; }
+.sb-super { background: linear-gradient(135deg, #fff3cd, #ffe69c) !important; color: #b58900 !important; font-weight: 600; }
+.sb-super.active { background: linear-gradient(135deg, #ffd700, #ffaa00) !important; color: #fff !important; }
+.sb-logout { color: #c92a2a !important; border-top: 1px solid #ffd6e3; margin-top: 8px; padding-top: 12px !important; }
+</style>

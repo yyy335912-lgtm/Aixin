@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}{{ member.name }} 的积分 · ZJU Club of Heart Caring{% endblock %}
+{% block content %}
+<section class="card profile-card">
+  <div class="profile-header">
+    <div class="avatar">{{ member.name[0] }}</div>
+    <div class="profile-info">
+      <h1>{{ member.name }}</h1>
+      <p class="muted">
+        {% if member.grade %}{{ member.grade }} · {% endif %}
+        {% if member.department %}{{ member.department }}{% endif %}
+        {% if member.identity == '长期项目组成员' %} · ⭐ 长期项目组成员{% endif %}
+        {% if member.long_term_group %} · 🏷 {{ member.long_term_group.name }}{% endif %}
+      </p>
+    </div>
+    <div class="profile-stats">
+      <div>
+        <div class="ps-hours">{{ '%.1f'|format(member.a_hours()) }} h</div>
+        <div class="ps-label">A类小时数</div>
+      </div>
+      <div>
+        <div class="ps-hours">{{ '%.1f'|format(member.b_hours()) }} h</div>
+        <div class="ps-label">B类小时数</div>
+      </div>
+      <div>
+        <div class="ps-num">{{ '%.2f'|format(member.total_points()) }}</div>
+        <div class="ps-label">总积分</div>
+      </div>
+    </div>
+  </div>
+  <p class="muted small center" style="margin-top:8px;">
+    💡 总积分 = A类小时数 + B类小时数 / 2  =  {{ '%.1f'|format(member.a_hours()) }} + {{ '%.1f'|format(member.b_hours()) }} / 2  =  <b>{{ '%.2f'|format(member.total_points()) }}</b>
+  </p>
+  <div class="center" style="margin-top:10px;">
+    <button class="btn btn-ghost btn-sm" onclick="showEditProfile()">✏️ 修改信息</button>
+  </div>
+</section>
+
+{% if pending_count > 0 %}
+<section class="card signoff-banner">
+  <div class="signoff-banner-inner">
+    <div>
+      <div class="signoff-banner-title">🆕 您有 <b style="color:var(--danger);">{{ pending_count }}</b> 项活动待签收</div>
+      <div class="muted small">新录入的活动需要您确认无误；勾选想要签收的项，或一键签收全部</div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn btn-primary" type="button" onclick="checkAllPending()">☑️ 全选待签收</button>
+      <button class="btn" type="button" onclick="uncheckAll()">清空选择</button>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="card rank-card">
+  <h2>🏆 我的排名</h2>
+  <div class="rank-grid">
+    <div class="rank-box rank-all">
+      <div class="rank-num">#{{ rank_all }}</div>
+      <div class="rank-label">全社团排名</div>
+      <div class="rank-meta">共 {{ total_all }} 人</div>
+    </div>
+    {% if rank_dept %}
+    <div class="rank-box rank-dept">
+      <div class="rank-num">#{{ rank_dept }}</div>
+      <div class="rank-label">{{ member.department }}部门内</div>
+      <div class="rank-meta">共 {{ total_dept }} 人</div>
+    </div>
+    {% endif %}
+    {% if rank_lt %}
+    <div class="rank-box rank-lt" style="border-color:{{ member.long_term_group.color }};">
+      <div class="rank-num">#{{ rank_lt }}</div>
+      <div class="rank-label">{{ lt_name }}</div>
+      <div class="rank-meta">共 {{ total_lt }} 人</div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+{% if project_data %}
+<section class="card">
+  <h2>📊 项目概要</h2>
+  <div class="kpi-grid">
+    {% for item in project_data %}
+    <div class="kpi-card">
+      <div class="kpi-name">{{ item.project.name }}</div>
+      <div class="kpi-detail">
+        <span class="kpi-dot" style="background:#d3f9d8;"></span> A {{ '%.1f'|format(item.a_hours) }}h
+        <span class="kpi-dot" style="background:#fff3bf; margin-left:8px;"></span> B {{ '%.1f'|format(item.b_hours) }}h
+      </div>
+      <div class="kpi-pts">{{ '%.2f'|format(item.points) }} 分</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<form method="post" action="{{ url_for('query_signoff') }}" id="signoffForm">
+  <input type="hidden" name="student_id" value="{{ member.student_id }}">
+  <input type="hidden" name="mode" id="signoffMode" value="selected">
+  <input type="hidden" name="ids" id="signoffIds" value="">
+
+  <section class="card">
+    <h2>📋 全部活动记录</h2>
+    <p class="muted small">共 {{ all_activities|length }} 项 · 按日期倒序排列</p>
+    {% if all_activities %}
+    <div style="overflow-x:auto;">
+    <table class="data-table compact" id="allActivitiesTable">
+      <thead>
+        <tr>
+          <th style="width:36px;" class="center">签收</th>
+          <th style="width:95px;" class="center">日期</th>
+          <th style="width:120px;">项目</th>
+          <th>活动内容</th>
+          <th style="width:70px; background:#d3f9d8;" class="center">A类(h)</th>
+          <th style="width:70px; background:#fff3bf;" class="center">B类(h)</th>
+          <th style="width:80px;" class="center">贡献积分</th>
+          <th style="width:85px;" class="center">学期</th>
+          <th style="width:100px;" class="center">状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(cum_a=0.0, cum_b=0.0) %}
+        {% for row in all_activities %}
+        {% set ns.cum_a = ns.cum_a + row.a_hours %}
+        {% set ns.cum_b = ns.cum_b + row.b_hours %}
+        <tr class="{% if not row.is_signed_off %}row-pending{% endif %}">
+          <td class="center">
+            {% if not row.is_signed_off %}
+              <input type="checkbox" class="pending-cb" value="{{ row.id }}" checked>
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </td>
+          <td class="center cell-1line">{{ row.date or '—' }}</td>
+          <td><span class="proj-tag">{{ row.project }}</span></td>
+          <td>{{ row.content or '—' }}</td>
+          <td class="center" style="background:#f8fff9;"><b>{{ '%.1f'|format(row.a_hours) }}</b></td>
+          <td class="center" style="background:#fffef0;"><b>{{ '%.1f'|format(row.b_hours) }}</b></td>
+          <td class="center"><b>{{ '%.2f'|format(row.points) }}</b></td>
+          <td class="center"><span class="muted small">{{ row.semester }}</span></td>
+          <td class="center">
+            {% if row.is_signed_off %}
+              <span class="status-badge ok" title="{{ row.signed_off_at.strftime('%Y-%m-%d %H:%M') if row.signed_off_at else '' }}">✓ 已签收</span>
+            {% else %}
+              <span class="status-badge warn">🆕 待签收</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background:linear-gradient(135deg, #fff5f7, #ffe0e9);">
+          <td class="center" colspan="4"><b>💰 合计</b></td>
+          <td class="center" style="background:#f8fff9;"><b>{{ '%.1f'|format(total_a) }} h</b></td>
+          <td class="center" style="background:#fffef0;"><b>{{ '%.1f'|format(total_b) }} h</b></td>
+          <td class="center"><b>{{ '%.2f'|format(member.total_points()) }}</b></td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+    {% else %}
+    <p class="empty">暂无活动记录</p>
+    {% endif %}
+  </section>
+
+  <section class="card signoff-card">
+    <h2>✅ 签收</h2>
+    {% if pending_count > 0 %}
+      <p>请确认以上 <b style="color:var(--danger);">{{ pending_count }}</b> 项<b>待签收</b>活动的小时数与积分无误后签收。</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary" onclick="submitSignoff('selected')">✅ 签收选中的</button>
+        <button type="button" class="btn" onclick="submitSignoff('all')">✅ 全部签收（所有未签收）</button>
+      </div>
+    {% else %}
+      <p>🎉 您已签收过所有活动记录。</p>
+      <p class="muted small">最新签收时间：<b>{{ latest_signoff_at or '—' }}</b></p>
+    {% endif %}
+  </section>
+</form>
+
+<p class="center">
+  <a class="btn btn-ghost" href="{{ url_for('query') }}">← 返回查询</a>
+  <a class="btn btn-ghost" href="{{ url_for('long_term_groups_public') }}">🧡 查看长期项目组公布</a>
+</p>
+
+<div id="editProfileContainer"></div>
+
+<style>
+.signoff-banner {
+  background: linear-gradient(135deg, #fff3cd, #ffe69c);
+  border: 2px solid #ffc107;
+}
+.signoff-banner-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.signoff-banner-title { font-size: 16px; font-weight: 600; color: #856404; }
+.row-pending { background: #fffef5; }
+.row-pending:hover { background: #fff8e1; }
+.rank-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.rank-box {
+  text-align: center;
+  padding: 18px 12px;
+  border-radius: 14px;
+  background: #fff;
+  border: 2px solid #ffd6e7;
+  transition: transform .2s;
+}
+.rank-box:hover { transform: translateY(-2px); }
+.rank-all { background: linear-gradient(135deg, #fff0f6, #ffe0ec); }
+.rank-dept { background: linear-gradient(135deg, #e7f5ff, #d0ebff); border-color: #a5d8ff; }
+.rank-lt { background: linear-gradient(135deg, #fff9db, #fff3bf); }
+.rank-num {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.2;
+}
+.rank-dept .rank-num { color: #1971c2; }
+.rank-lt .rank-num { color: #b08900; }
+.rank-label { font-size: 14px; color: #555; margin-top: 4px; }
+.rank-meta { font-size: 12px; color: #888; margin-top: 2px; }
+.pending-cb { transform: scale(1.2); cursor: pointer; }
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.kpi-card {
+  background: #fafafa;
+  border: 1px solid #f0e0e6;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.kpi-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.kpi-detail { font-size: 13px; color: #555; }
+.kpi-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; }
+.kpi-pts { font-size: 16px; font-weight: 700; color: var(--primary); margin-top: 4px; }
+#allActivitiesTable td, #allActivitiesTable th {
+  white-space: nowrap;
+}
+#allActivitiesTable td:nth-child(4) {
+  white-space: normal;
+  word-break: break-word;
+  max-width: 280px;
+}
+</style>
+
+<script>
+function showEditProfile() {
+  var container = document.getElementById('editProfileContainer');
+  container.innerHTML = `
+    <div class="popover-mask" onclick="closeEditProfile()" style="z-index: 9998;"></div>
+    <div class="popover" style="z-index: 9999; max-width: 400px;">
+      <button class="close-btn" onclick="closeEditProfile()" type="button" aria-label="关闭">×</button>
+      <h3>✏️ 修改个人信息</h3>
+      <form method="post" action="{{ url_for('member_update') }}" style="margin-top:12px;">
+        <input type="hidden" name="student_id" value="{{ member.student_id }}">
+        <input type="hidden" name="queryer_name" value="{{ name }}">
+        <div class="form-row">
+          <label>姓名</label>
+          <input type="text" value="{{ member.name }}" disabled style="background:#f5f5f5; padding:8px 10px; border-radius:6px; border:1px solid #e0c9d1; width:100%;">
+        </div>
+        <div class="form-row">
+          <label>学号</label>
+          <input type="text" value="{{ member.student_id }}" disabled style="background:#f5f5f5; padding:8px 10px; border-radius:6px; border:1px solid #e0c9d1; width:100%;">
+        </div>
+        <div class="form-row">
+          <label>📱 手机号</label>
+          <input type="text" name="phone" value="{{ member.phone or '' }}" placeholder="输入手机号" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #e0c9d1;">
+        </div>
+        <div class="form-row">
+          <label>📚 年级</label>
+          <input type="number" name="grade" value="{{ (member.grade or '').rstrip('级') }}" placeholder="2024" min="2000" max="2100" step="1" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #e0c9d1;">
+        </div>
+        <div class="form-actions" style="margin-top:14px;">
+          <button class="btn btn-primary" type="submit">💾 保存</button>
+          <button class="btn btn-ghost" type="button" onclick="closeEditProfile()">取消</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.style.overflow = 'hidden';
+}
+function closeEditProfile() {
+  document.getElementById('editProfileContainer').innerHTML = '';
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeEditProfile(); });
+
+function getCheckedIds() {
+  return Array.from(document.querySelectorAll('.pending-cb:checked')).map(c => c.value);
+}
+function submitSignoff(mode) {
+  if (mode === 'selected') {
+    const ids = getCheckedIds();
+    if (ids.length === 0) {
+      alert('请至少勾选一项，或点击"全部签收"');
+      return;
+    }
+    document.getElementById('signoffIds').value = ids.join(',');
+  } else {
+    document.getElementById('signoffIds').value = '';
+  }
+  document.getElementById('signoffMode').value = mode;
+  if (!confirm(mode === 'all' ? '确认签收所有未签收的活动？' : '确认签收选中的活动？')) return;
+  document.getElementById('signoffForm').submit();
+}
+function checkAllPending() {
+  document.querySelectorAll('.pending-cb').forEach(c => c.checked = true);
+}
+function uncheckAll() {
+  document.querySelectorAll('.pending-cb').forEach(c => c.checked = false);
+}
+</script>
+{% endblock %}

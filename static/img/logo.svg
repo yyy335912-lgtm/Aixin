@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff6b6b"/>
+      <stop offset="100%" stop-color="#e03131"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff5f5"/>
+      <stop offset="100%" stop-color="#ffe3e3"/>
+    </linearGradient>
+  </defs>
+  <!-- outer ring -->
+  <circle cx="100" cy="100" r="92" fill="url(#g2)" stroke="url(#g)" stroke-width="4"/>
+  <!-- inner heart -->
+  <path d="M100 150
+           C 60 120, 35 100, 35 75
+           C 35 55, 50 42, 70 42
+           C 85 42, 95 50, 100 60
+           C 105 50, 115 42, 130 42
+           C 150 42, 165 55, 165 75
+           C 165 100, 140 120, 100 150 Z"
+        fill="url(#g)" stroke="#c92a2a" stroke-width="2"/>
+  <!-- white hand / flame inside heart -->
+  <path d="M100 130
+           L 100 75
+           M 100 95 L 88 88
+           M 100 105 L 90 100
+           M 100 95 L 112 88
+           M 100 105 L 110 100"
+        stroke="#fff5f5" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <!-- ZJU text -->
+  <text x="100" y="178" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-weight="700" fill="#c92a2a" letter-spacing="1">ZJU · 爱心社</text>
+  <!-- top ribbon -->
+  <path d="M30 50 Q 100 30, 170 50" stroke="#c92a2a" stroke-width="1.5" fill="none" opacity="0.5"/>
+  <path d="M30 150 Q 100 170, 170 150" stroke="#c92a2a" stroke-width="1.5" fill="none" opacity="0.5"/>
+</svg>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}积分查询 · ZJU Club of Heart Caring{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>🔍 积分查询</h1>
+  <p class="muted">请输入您的<b>学号</b>和姓名（姓名用于审计记录）。</p>
+
+  <form method="post" class="form">
+    <div class="form-row">
+      <label>学号 <span class="req">*</span></label>
+      <input type="text" name="student_id" placeholder="例如：22300000001" required autofocus>
+    </div>
+    <div class="form-row">
+      <label>您的姓名 <span class="muted">(用于审计记录)</span></label>
+      <input type="text" name="queryer_name" placeholder="例如：张三">
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">🔍 查询</button>
+      <a class="btn btn-ghost" href="{{ url_for('index') }}">← 返回首页</a>
+    </div>
+  </form>
+
+  <div class="hint">
+    <p><b>💡 查询说明</b></p>
+    <ul style="line-height: 1.7; color: #555;">
+      <li>系统以<b>学号</b>作为唯一身份标识</li>
+      <li>为保护数据安全，请如实填写姓名以便审计</li>
+      <li>查询后可查看：A/B 类小时数明细、积分公式、所属项目排名、长期项目组归属等</li>
+      <li>如有疑问，请联系社团管理员（通常是人资部 / 综管部）</li>
+    </ul>
+  </div>
+</section>
+{% endblock %}

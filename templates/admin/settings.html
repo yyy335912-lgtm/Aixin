@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>⚙️ 系统设置</h1>
+  <p class="muted">配置社团基本信息（学期、部门列表）</p>
+
+  <div class="card narrow">
+    <h2>📚 基本信息</h2>
+    <form method="post" class="form">
+      <div class="form-row">
+        <label>当前学期 <span class="req">*</span></label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <input type="number" name="current_academic_year" id="yearInput" required
+            placeholder="2025"
+            value="{{ cur_year }}"
+            min="2000" max="2100" step="1"
+            style="flex:1; min-width:140px;">
+          <span style="color:#888; font-weight:600;">·</span>
+          <select name="current_season" id="seasonSel" required style="flex:1; min-width:140px;">
+            <option value="">— 选择学期 —</option>
+            <option value="秋冬" {% if cur_season=='秋冬' %}selected{% endif %}>🧡 秋冬学期（9月-次年1月）</option>
+            <option value="春夏" {% if cur_season=='春夏' %}selected{% endif %}>🌸 春夏学期（2月-8月）</option>
+          </select>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="autoDetect()" title="根据当前日期自动检测">📡 自动检测</button>
+        </div>
+        <input type="hidden" name="current_semester" id="semHidden" value="{{ current_sem }}">
+        <small class="muted">
+          📌 浙大四学期制 · 2025-2026 学年 = <b>2025秋冬 + 2026春夏</b>
+          同一学年内 2 个学期分别有独立的「第 N 次」编号
+        </small>
+        <div id="semPreview" style="margin-top:6px; padding:8px 12px; background:linear-gradient(135deg, #fff5f8, #ffe5ec); border-radius:8px; font-size:13px; color:var(--primary-dark); display:none;">
+          预览：<b id="semPreviewText"></b>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>部门列表</label>
+        <textarea name="departments" rows="3" placeholder="人资部,综管部,文体部,...">{{ departments }}</textarea>
+        <small class="muted">用英文逗号分隔，用于下拉选择和统计</small>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">💾 保存设置</button>
+        <a class="btn btn-ghost" href="{{ url_for('admin_dashboard') }}">取消</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>🔐 管理员账号</h2>
+    <p class="muted">管理员白名单与超管设置请前往：<a class="btn btn-sm" href="{{ url_for('admin_whitelist') }}" style="margin-left:6px;">⚡ 白名单管理</a>（仅超管可见）</p>
+  </div>
+
+  <div class="card">
+    <h2>🌍 公网访问</h2>
+    <p class="muted">本系统已部署至公网，可通过 cloudflare 隧道访问：</p>
+    <code style="display:block; background:#f5f5f5; padding:10px 14px; border-radius:8px; word-break:break-all; margin-top:6px;">
+      https://forums-integrating-indicating-barn.trycloudflare.com
+    </code>
+  </div>
+</section>
+
+<script>
+// ===== 浙大学期自动检测逻辑 =====
+function getZJUSemester() {
+  var now = new Date();
+  var m = now.getMonth() + 1;
+  var y = now.getFullYear();
+  var year, season;
+  if (m >= 9) {
+    year = y; season = '秋冬';
+  } else if (m >= 2) {
+    year = y - 1; season = '春夏';
+  } else {
+    year = y - 1; season = '秋冬';
+  }
+  return { year: year, season: season };
+}
+
+function autoDetect() {
+  var sem = getZJUSemester();
+  document.getElementById('yearInput').value = sem.year;
+  document.getElementById('seasonSel').value = sem.season;
+  updateSemPreview();
+}
+
+function updateSemPreview() {
+  var year = parseInt(document.getElementById('yearInput').value);
+  var season = document.getElementById('seasonSel').value;
+  var preview = document.getElementById('semPreview');
+  var previewText = document.getElementById('semPreviewText');
+  var hidden = document.getElementById('semHidden');
+  if (year && season) {
+    var displayYear = year + '-' + (year + 1);
+    var shortYear;
+    if (season === '秋冬') {
+      shortYear = (year % 100).toString().padStart(2, '0');
+    } else {
+      shortYear = ((year + 1) % 100).toString().padStart(2, '0');
+    }
+    var code = shortYear + season;
+    hidden.value = code;
+    previewText.innerHTML = displayYear + ' 学年 ' + season + ' 学期 = <b>' + code + '</b>（系统存储格式）';
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+    hidden.value = '';
+  }
+}
+document.getElementById('yearInput').addEventListener('input', updateSemPreview);
+document.getElementById('seasonSel').addEventListener('change', updateSemPreview);
+updateSemPreview();
+</script>
+{% endblock %}

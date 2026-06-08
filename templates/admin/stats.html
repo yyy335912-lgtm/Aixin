@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>📈 数据统计</h1>
+  <p class="muted">总览社团整体志愿时长与积分分布，积分公式 <code>A类 + B类/2 + 任职积分</code></p>
+
+  <div class="grid">
+    <div class="card stat-card" style="background:linear-gradient(135deg,#f8fff9,#d3f9d8);">
+      <div class="stat-icon" style="color:#2b8a3e;">🟢</div>
+      <div class="stat-num" style="color:#2b8a3e;">{{ '%.1f'|format(total_a) }}</div>
+      <div class="stat-label">A类总小时数（×1.0）</div>
+    </div>
+    <div class="card stat-card" style="background:linear-gradient(135deg,#fffef0,#fff3bf);">
+      <div class="stat-icon" style="color:#b08900;">🟡</div>
+      <div class="stat-num" style="color:#b08900;">{{ '%.1f'|format(total_b) }}</div>
+      <div class="stat-label">B类总小时数（×0.5）</div>
+    </div>
+    <div class="card stat-card" style="background:linear-gradient(135deg,#fff5f8,#ffd6e3);">
+      <div class="stat-icon" style="color:var(--primary);">🧡</div>
+      <div class="stat-num" style="color:var(--primary);">{{ '%.2f'|format(total_a + total_b / 2) }}</div>
+      <div class="stat-label">志愿总积分</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🏆 社员积分榜 Top 50</h2>
+    <p class="muted small">积分公式：<code>A类小时数 + B类小时数 / 2 + 任职积分</code></p>
+    <div style="overflow-x:auto;">
+    <div class="table-responsive">
+<table class="data-table compact">
+      <thead>
+        <tr>
+          <th style="width:60px;" class="center">排名</th>
+          <th>姓名</th>
+          <th style="width:90px;">年级</th>
+          <th style="width:120px;">部门</th>
+          <th style="width:90px; background:#d3f9d8;" class="center">A类(h)</th>
+          <th style="width:90px; background:#fff3bf;" class="center">B类(h)</th>
+          <th style="width:110px;" class="center">总积分</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows[:50] %}
+        <tr>
+          <td class="center">
+            {% if loop.index==1 %}🥇
+            {% elif loop.index==2 %}🥈
+            {% elif loop.index==3 %}🥉
+            {% else %}<span class="muted">{{ loop.index }}</span>
+            {% endif %}
+          </td>
+          <td><b style="color:var(--primary-dark);">{{ row.member.name }}</b></td>
+          <td><span class="muted small">{{ row.member.grade or '—' }}</span></td>
+          <td><span class="cell-1line" title="{{ row.member.department or '' }}">{{ row.member.department or '—' }}</span></td>
+          <td class="center" style="background:#f8fff9;">{{ '%.1f'|format(row.a_hours) }}</td>
+          <td class="center" style="background:#fffef0;">{{ '%.1f'|format(row.b_hours) }}</td>
+          <td class="center"><b style="color:var(--primary); font-size:15px;">{{ '%.2f'|format(row.total) }}</b></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="empty">暂无数据</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <h2>🏢 部门积分合计</h2>
+      <p class="muted small">包含部门工作积分 + 任职积分</p>
+      <div class="table-responsive">
+<table class="data-table compact">
+        <thead>
+          <tr><th>部门</th><th style="width:140px;" class="center">积分合计</th></tr>
+        </thead>
+        <tbody>
+          {% for d, p in dept_points.items()|sort(attribute='1', reverse=true) %}
+          <tr>
+            <td><b>{{ d }}</b></td>
+            <td class="center"><b style="color:var(--primary);">{{ '%.1f'|format(p) }}</b></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="2" class="empty">暂无数据</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+</div>
+    </div>
+
+    <div class="card">
+      <h2>🌟 项目 A/B 时长分布</h2>
+      <div class="table-responsive">
+<table class="data-table compact">
+        <thead>
+          <tr>
+            <th>项目</th>
+            <th style="width:80px; background:#d3f9d8;" class="center">A类(h)</th>
+            <th style="width:80px; background:#fff3bf;" class="center">B类(h)</th>
+            <th style="width:90px;" class="center">合计</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for n in proj_a.keys() %}
+          <tr>
+            <td><b>{{ n }}</b></td>
+            <td class="center" style="background:#f8fff9;">{{ proj_a[n] }}</td>
+            <td class="center" style="background:#fffef0;">{{ proj_b[n] }}</td>
+            <td class="center"><b>{{ '%.1f'|format(proj_a[n] + proj_b[n]) }}</b></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="empty">暂无数据</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+</div>
+    </div>
+  </div>
+</section>
+{% endblock %}

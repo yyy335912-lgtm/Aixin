@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>📥 批量导入社任职积分</h1>
+  <p class="muted">支持 <code>.xlsx / .xls / .csv</code> 文件。可结合「部门工作积分」一起导入。</p>
+
+  {% if error %}
+  <div class="card" style="border-color: var(--danger); background: #ffe3e3;">
+    <b>❌ {{ error }}</b>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>第一步：下载模板（推荐）</h2>
+    <form method="post" style="display:inline;">
+      <input type="hidden" name="action" value="download_template">
+      <button class="btn btn-primary" type="submit">📥 下载 Excel 模板</button>
+    </form>
+    <a class="btn btn-ghost" href="{{ url_for('admin_positions') }}">← 返回任职列表</a>
+  </div>
+
+  <div class="card">
+    <h2>第二步：上传文件</h2>
+    <form method="post" enctype="multipart/form-data" class="form">
+      <div class="form-row">
+        <label>选择文件</label>
+        <input type="file" name="file" accept=".xlsx,.xls,.csv" required>
+        <small class="muted">
+          必填列：<b>姓名 / 学号</b>（二选一）、<b>职务</b>。
+          可选列：部门、积分、学期。
+        </small>
+      </div>
+      <div class="form-actions">
+        <input type="hidden" name="action" value="preview">
+        <button class="btn btn-primary" type="submit">📤 上传并预览</button>
+      </div>
+    </form>
+  </div>
+
+  {% if preview %}
+  <div class="card" style="border-color: var(--primary);">
+    <h2>第三步：确认列对应与导入</h2>
+    <p class="muted">
+      共解析到 <b>{{ preview.total }}</b> 条数据，下面预览前 {{ preview.rows|length }} 条。
+    </p>
+
+    <form method="post" class="form">
+      <input type="hidden" name="action" value="confirm">
+
+      <h3>列对应</h3>
+      <div class="grid">
+        {% set field_choices = [
+          ('col_name', '姓名', preview.mapping.get('name', -1), False),
+          ('col_sid', '学号', preview.mapping.get('student_id', -1), False),
+          ('col_position', '职务', preview.mapping.get('position', -1), True),
+          ('col_dept', '部门', preview.mapping.get('department', -1), False),
+          ('col_points', '积分', preview.mapping.get('points', -1), False),
+          ('col_semester', '学期', preview.mapping.get('semester', -1), False),
+        ] %}
+        {% for field_name, label, detected, required in field_choices %}
+        <div class="form-row">
+          <label>{{ label }}{% if required %} <span class="req">*</span>{% endif %}</label>
+          <select name="{{ field_name }}">
+            <option value="-1" {% if detected==-1 %}selected{% endif %}>-- 不导入 --</option>
+            {% for h in preview.headers %}
+            <option value="{{ loop.index0 }}" {% if detected==loop.index0 %}selected{% endif %}>第 {{ loop.index }} 列：{{ h or '(无标题)' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+
+      <h3>未指定列时的默认值</h3>
+      <div class="grid">
+        <div class="form-row">
+          <label>默认学期（学期列未指定时使用）</label>
+          <input type="text" name="default_semester" value="{{ current_semester }}" placeholder="例如：25秋冬">
+        </div>
+      </div>
+
+      <h3>数据预览（前 {{ preview.rows|length }} 条 / 共 {{ preview.total }} 条）</h3>
+      <div style="overflow-x:auto;">
+      <div class="table-responsive">
+<table class="data-table compact">
+        <thead>
+          <tr>
+            <th>#</th>
+            {% for h in preview.headers %}
+            <th>{{ h or '(无标题)' }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in preview.rows %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            {% for c in r %}<td>{{ c }}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+</div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">✅ 确认导入 {{ preview.total }} 条</button>
+        <a class="btn btn-ghost" href="{{ url_for('admin_position_import') }}">取消</a>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

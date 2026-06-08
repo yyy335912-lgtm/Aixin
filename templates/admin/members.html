@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>👥 成员管理</h1>
+  <p class="muted">共 {{ all_count }} 名社员 · 🧡 普通社员 {{ member_count }} · ⭐ 长期项目组成员 {{ longterm_count }}</p>
+
+  <div class="toolbar">
+    <form method="get" class="search-form">
+      <input type="text" name="q" value="{{ keyword }}" placeholder="🔍 搜索姓名">
+      <input type="hidden" name="identity" value="{{ identity_filter }}">
+      <button class="btn btn-sm" type="submit">搜索</button>
+      {% if keyword %}<a class="btn btn-ghost btn-sm" href="{{ url_for('admin_members', identity=identity_filter) }}">✕ 清除</a>{% endif %}
+    </form>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn btn-primary" href="{{ url_for('admin_member_new') }}">➕ 添加成员</a>
+      <a class="btn btn-ghost" href="{{ url_for('admin_member_import') }}">📥 批量导入</a>
+      <a class="btn btn-ghost" href="{{ url_for('admin_export') }}">📤 导出</a>
+    </div>
+  </div>
+
+  <div class="filter-tabs">
+    <a class="filter-tab {% if identity_filter == 'all' %}active{% endif %}"
+       href="{{ url_for('admin_members', q=keyword, identity='all') }}">📋 全部 ({{ all_count }})</a>
+    <a class="filter-tab {% if identity_filter == 'member' %}active{% endif %}"
+       href="{{ url_for('admin_members', q=keyword, identity='member') }}">🧡 社员 ({{ member_count }})</a>
+    <a class="filter-tab {% if identity_filter == 'longterm' %}active{% endif %}"
+       href="{{ url_for('admin_members', q=keyword, identity='longterm') }}">⭐ 长期项目组成员 ({{ longterm_count }})</a>
+  </div>
+
+  <form id="batchForm" method="post" action="{{ url_for('admin_member_batch_delete') }}"
+        onsubmit="return confirmBatchDelete()">
+    <div class="batch-bar" id="batchBar" style="display:none;">
+      <span><b id="selectedCount">0</b> 个成员已选中</span>
+      <button type="submit" class="btn btn-danger btn-sm">🗑️ 批量删除选中</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="clearSelection()">取消选择</button>
+    </div>
+
+    <div class="card">
+      <div style="overflow-x:auto;">
+      <div class="table-responsive">
+<table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:40px;"><input type="checkbox" id="checkAll" onchange="toggleAll(this.checked)"></th>
+            <th style="width:110px;">姓名</th>
+            <th style="width:90px;" class="center">年级</th>
+            <th style="width:110px;">部门</th>
+            <th style="width:80px;">身份</th>
+            <th style="width:130px;">长期项目组</th>
+            <th style="width:80px; background:#d3f9d8;" class="center">A类(h)</th>
+            <th style="width:80px; background:#fff3bf;" class="center">B类(h)</th>
+            <th style="width:90px;" class="center">总积分</th>
+            <th style="width:130px;" class="center">签收</th>
+            <th style="width:160px;" class="center">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in members %}
+          <tr>
+            <td><input type="checkbox" name="ids" value="{{ m.id }}" class="row-check" onchange="updateBatchBar()"></td>
+            <td><b style="color:var(--primary-dark);">{{ m.name }}</b></td>
+            <td class="center nowrap">{{ m.grade or '—' }}</td>
+            <td class="nowrap">{{ m.department or '—' }}</td>
+            <td>
+              {% if m.identity == '长期项目组成员' %}
+                <span class="status-badge warn">⭐ 长期</span>
+              {% else %}
+                <span class="status-badge ok">🧡 社员</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if m.long_term_group %}
+                <span class="lt-chip" style="background:{{ m.long_term_group.color }}20; color:{{ m.long_term_group.color }}; border:1px solid {{ m.long_term_group.color }};">
+                  {{ m.long_term_group.name }}
+                </span>
+              {% else %}
+                <span class="muted small">—</span>
+              {% endif %}
+            </td>
+            <td class="center" style="background:#f8fff9;"><b style="color:#2b8a3e;">{{ '%.1f'|format(m.a_hours()) }}</b></td>
+            <td class="center" style="background:#fffef0;"><b style="color:#b08900;">{{ '%.1f'|format(m.b_hours()) }}</b></td>
+            <td class="center"><b style="color:var(--primary); font-size:14px;">{{ '%.2f'|format(m.total_points()) }}</b></td>
+            <td class="center">
+              {% set unsigned = m.unsigned_activity_count() %}
+              {% set signed = m.signed_activity_count() %}
+              {% if unsigned == 0 and signed > 0 %}
+                <span class="status-badge ok" title="已签收 {{ signed }} 项">✓ 全部已签</span>
+              {% elif signed == 0 %}
+                <span class="status-badge off">— 无记录</span>
+              {% else %}
+                <span class="status-badge warn" title="已签 {{ signed }}，待签 {{ unsigned }}">
+                  🆕 待签 {{ unsigned }}
+                </span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="action-btns">
+                <a class="btn btn-xs" href="{{ url_for('admin_member_edit', mid=m.id) }}">✏️ 编辑</a>
+                <button type="button" class="btn btn-xs btn-danger" onclick="singleDelete({{ m.id }}, '{{ m.name|e }}')">🗑️ 删除</button>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="11" class="empty">暂无成员</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+</div>
+      </div>
+    </div>
+  </form>
+
+  <form id="singleDeleteForm" method="post" style="display:none;">
+    <input type="hidden" name="ids" id="singleDeleteId">
+  </form>
+</section>
+
+<style>
+.filter-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0 18px;
+  flex-wrap: wrap;
+}
+.filter-tab {
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1.5px solid #ffd6e7;
+  color: #666;
+  font-size: 14px;
+  text-decoration: none;
+  transition: all .2s;
+}
+.filter-tab:hover {
+  background: #fff0f6;
+  border-color: var(--primary);
+  color: var(--primary);
+  text-decoration: none;
+}
+.filter-tab.active {
+  background: linear-gradient(135deg, #ff6b9d, #ff8e9e);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255, 107, 157, 0.3);
+}
+.lt-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.action-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  justify-content: center;
+  white-space: nowrap;
+}
+.action-btns .btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+</style>
+
+<script>
+function toggleAll(checked) {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = checked);
+  updateBatchBar();
+}
+function updateBatchBar() {
+  const checked = document.querySelectorAll('.row-check:checked').length;
+  document.getElementById('selectedCount').textContent = checked;
+  document.getElementById('batchBar').style.display = checked > 0 ? 'flex' : 'none';
+  const all = document.querySelectorAll('.row-check');
+  document.getElementById('checkAll').checked = checked === all.length && checked > 0;
+  document.getElementById('checkAll').indeterminate = checked > 0 && checked < all.length;
+}
+function clearSelection() {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = false);
+  document.getElementById('checkAll').checked = false;
+  updateBatchBar();
+}
+function confirmBatchDelete() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  if (n === 0) {
+    alert('请先选择要删除的成员');
+    return false;
+  }
+  return confirm(`确定要批量删除 ${n} 名成员吗？\n\n这将一并删除他们的所有积分记录、签收记录等，\n此操作不可恢复！`);
+}
+function singleDelete(id, name) {
+  if (confirm(`确定要删除成员【${name}】吗？\n\n这将一并删除他的所有积分记录、签收记录等，\n此操作不可恢复！`)) {
+    const form = document.getElementById('singleDeleteForm');
+    form.action = '/admin/members/' + id + '/delete';
+    form.submit();
+  }
+}
+</script>
+{% endblock %}

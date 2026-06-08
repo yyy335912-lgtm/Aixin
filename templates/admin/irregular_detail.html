@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>✦ 非常规活动详情 · {{ activity.content or activity.date }}</h1>
+
+  <div class="card">
+    <div class="event-info">
+      <div><b>日期：</b>{{ activity.date }}</div>
+      <div><b>地点：</b>{{ activity.location or '—' }}</div>
+      <div><b>学期：</b>{{ activity.semester }}</div>
+      <div>
+        <b>事件参考：</b>
+        <span class="proj-tag" style="background:#d3f9d8;color:#2b8a3e;">A类 {{ '%.1f'|format(activity.a_hours or 0) }} h</span>
+        <span class="proj-tag" style="background:#fff3bf;color:#b08900;">B类 {{ '%.1f'|format(activity.b_hours or 0) }} h</span>
+      </div>
+    </div>
+    <div class="actions">
+      <a class="btn btn-sm" href="{{ url_for('admin_irregular_edit', iid=activity.id) }}">编辑事件</a>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('admin_irregulars') }}">← 返回列表</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>👥 参与者（{{ activity.participants|length }}）</h2>
+    <form method="post" action="{{ url_for('admin_irregular_add_participant', iid=activity.id) }}" class="form-inline">
+      <select name="member_id" required>
+        <option value="">-- 选择社员 --</option>
+        {% for m in members %}
+        <option value="{{ m.id }}">{{ m.name }} - {{ m.department }}</option>
+        {% endfor %}
+      </select>
+      <input type="number" name="a_hours" step="0.1" min="0" placeholder="A类小时数" style="width:120px;">
+      <input type="number" name="b_hours" step="0.1" min="0" placeholder="B类小时数" style="width:120px;">
+      <button class="btn btn-primary" type="submit">+ 添加参与者</button>
+    </form>
+
+    {% if activity.participants %}
+    <div class="table-responsive">
+<table class="data-table compact">
+      <thead>
+        <tr>
+          <th>姓名</th><th>部门</th>
+          <th style="background:#d3f9d8;">A类(h)</th>
+          <th style="background:#fff3bf;">B类(h)</th>
+          <th>贡献积分</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in activity.participants %}
+        <tr>
+          <td><b>{{ p.member.name }}</b></td>
+          <td>{{ p.member.department }}</td>
+          <td style="background:#f8fff9;"><b>{{ '%.1f'|format(p.a_hours or 0) }}</b></td>
+          <td style="background:#fffef0;"><b>{{ '%.1f'|format(p.b_hours or 0) }}</b></td>
+          <td><b>{{ '%.2f'|format((p.a_hours or 0) + (p.b_hours or 0) / 2.0) }}</b></td>
+          <td>
+            <form method="post" action="{{ url_for('admin_irregular_remove_participant', iid=activity.id, pid=p.member_id) }}" style="display:inline" onsubmit="return confirm('移除该参与者？')">
+              <button class="btn btn-xs btn-danger" type="submit">移除</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row">
+          <td colspan="2">合计</td>
+          <td style="background:#d3f9d8;"><b>{{ '%.1f'|format(activity.total_a_hours()) }}</b></td>
+          <td style="background:#fff3bf;"><b>{{ '%.1f'|format(activity.total_b_hours()) }}</b></td>
+          <td><b>{{ '%.2f'|format(activity.total_a_hours() + activity.total_b_hours() / 2.0) }}</b></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+</div>
+    {% else %}
+    <p class="empty">还没有参与者，请在上面添加</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

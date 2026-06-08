@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>{% if activity %}编辑活动{% else %}登记新活动{% endif %}</h1>
+
+  <form method="post" class="form" id="activity-form">
+    <div class="card narrow">
+      <h2>📝 活动信息</h2>
+      <div class="form-row">
+        <label>所属项目 <span class="req">*</span></label>
+        <select name="project_id" required>
+          {% for p in projects %}
+          <option value="{{ p.id }}" {% if activity and activity.project_id==p.id %}selected{% endif %}>{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-row two-col-form">
+        <div>
+          <label>活动次序</label>
+          <input type="number" name="sequence" value="{{ activity.sequence if activity else 0 }}">
+        </div>
+        <div>
+          <label>日期</label>
+          <input type="text" name="date" value="{{ activity.date if activity else '' }}" placeholder="例如：2025-11-15">
+        </div>
+      </div>
+      <div class="form-row two-col-form">
+        <div>
+          <label>时间</label>
+          <input type="text" name="time" value="{{ activity.time if activity else '' }}" placeholder="例如：14:00-17:00">
+        </div>
+        <div>
+          <label>服务对象人数</label>
+          <input type="number" name="served_count" value="{{ activity.served_count if activity else 0 }}">
+        </div>
+      </div>
+      <div class="form-row two-col-form ab-hours">
+        <div>
+          <label>活动总 A类小时数</label>
+          <input type="number" name="a_hours" step="0.1" min="0" value="{{ activity.a_hours if activity else 0 }}">
+          <small class="muted">参考值（公益服务类，×1.0 积分）</small>
+        </div>
+        <div>
+          <label>活动总 B类小时数</label>
+          <input type="number" name="b_hours" step="0.1" min="0" value="{{ activity.b_hours if activity else 0 }}">
+          <small class="muted">参考值（事务类，×0.5 积分）</small>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>地点</label>
+        <input type="text" name="location" value="{{ activity.location if activity else '' }}">
+      </div>
+      <div class="form-row">
+        <label>活动内容</label>
+        <input type="text" name="content" value="{{ activity.content if activity else '' }}">
+      </div>
+      <div class="form-row">
+        <label>学期</label>
+        <input type="text" name="semester" value="{{ activity.semester if activity else current_semester }}" placeholder="例如：25秋冬">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>👥 参与者 <span class="muted">（共 <span id="p-count">{{ participants|length }}</span> 人）</span></h2>
+      <p class="muted small">每位参与者分别填写自己的 A 类和 B 类小时数（同一活动内可不同）。空白行将被忽略。</p>
+      <input type="hidden" name="participants_data" id="participants-data" value="">
+      <div class="table-responsive">
+<table class="data-table compact" id="participants-table">
+        <thead>
+          <tr>
+            <th style="width:34%">社员</th>
+            <th style="width:18%">部门</th>
+            <th style="width:18%">A类小时数</th>
+            <th style="width:18%">B类小时数</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="participants-body">
+          {% for ap in participants %}
+          <tr class="p-row">
+            <td>
+              <select class="p-member" required>
+                <option value="">-- 选择社员 --</option>
+                {% for m in members %}
+                <option value="{{ m.id }}" data-dept="{{ m.department }}" {% if ap.member_id==m.id %}selected{% endif %}>{{ m.name }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="p-dept">{{ ap.member.department }}</td>
+            <td><input type="number" class="p-a" step="0.1" min="0" value="{{ ap.a_hours or 0 }}"></td>
+            <td><input type="number" class="p-b" step="0.1" min="0" value="{{ ap.b_hours or 0 }}"></td>
+            <td><button type="button" class="btn btn-xs btn-danger p-del">移除</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+</div>
+      <button type="button" class="btn btn-ghost" id="add-participant">+ 添加参与者</button>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">保存</button>
+      <a class="btn btn-ghost" href="{{ url_for('admin_activities') }}">取消</a>
+      {% if activity %}
+      <a class="btn btn-ghost" href="{{ url_for('admin_activity_detail', aid=activity.id) }}">返回详情</a>
+      {% endif %}
+    </div>
+  </form>
+</section>
+
+<style>
+.ab-hours > div { background: linear-gradient(135deg, #f8fff9 0%, #fffef0 100%); border-radius: 6px; padding: 10px 12px; }
+.ab-hours > div:first-child { border-left: 3px solid #51cf66; }
+.ab-hours > div:last-child  { border-left: 3px solid #fab005; }
+#participants-table input.p-a, #participants-table input.p-b { width: 100%; padding: 4px 6px; }
+#participants-table select.p-member { width: 100%; padding: 4px 6px; }
+</style>
+
+<script>
+(function(){
+  const members = [
+    {% for m in members %}
+    {id: {{ m.id }}, name: {{ m.name|tojson }}, dept: {{ m.department|tojson }}},
+    {% endfor %}
+  ];
+  const tbody = document.getElementById('participants-body');
+  const counter = document.getElementById('p-count');
+  const dataInput = document.getElementById('participants-data');
+
+  function memberOptions(selectedId) {
+    let s = '<option value="">-- 选择社员 --</option>';
+    members.forEach(m => {
+      const sel = (selectedId == m.id) ? 'selected' : '';
+      s += `<option value="${m.id}" data-dept="${m.dept}" ${sel}>${m.name}</option>`;
+    });
+    return s;
+  }
+  function refreshCount() {
+    if (counter) counter.textContent = tbody.querySelectorAll('.p-row').length;
+  }
+  function bindRow(row) {
+    const sel = row.querySelector('.p-member');
+    const deptCell = row.querySelector('.p-dept');
+    sel.addEventListener('change', () => {
+      const opt = sel.selectedOptions[0];
+      deptCell.textContent = opt ? (opt.dataset.dept || '') : '';
+    });
+    row.querySelector('.p-del').addEventListener('click', () => {
+      row.remove();
+      refreshCount();
+    });
+  }
+  function addRow(prefill) {
+    prefill = prefill || {};
+    const tr = document.createElement('tr');
+    tr.className = 'p-row';
+    tr.innerHTML = `
+      <td><select class="p-member" required>${memberOptions(prefill.member_id)}</select></td>
+      <td class="p-dept">${prefill.dept || ''}</td>
+      <td><input type="number" class="p-a" step="0.1" min="0" value="${prefill.a_hours || ''}"></td>
+      <td><input type="number" class="p-b" step="0.1" min="0" value="${prefill.b_hours || ''}"></td>
+      <td><button type="button" class="btn btn-xs btn-danger p-del">移除</button></td>
+    `;
+    tbody.appendChild(tr);
+    bindRow(tr);
+    refreshCount();
+  }
+  document.getElementById('add-participant').addEventListener('click', () => addRow());
+  tbody.querySelectorAll('.p-row').forEach(bindRow);
+  refreshCount();
+
+  document.getElementById('activity-form').addEventListener('submit', (e) => {
+    const list = [];
+    tbody.querySelectorAll('.p-row').forEach(row => {
+      const mid = row.querySelector('.p-member').value;
+      const a = parseFloat(row.querySelector('.p-a').value || 0);
+      const b = parseFloat(row.querySelector('.p-b').value || 0);
+      if (mid && (a > 0 || b > 0)) {
+        list.push({member_id: parseInt(mid), a_hours: a, b_hours: b});
+      }
+    });
+    dataInput.value = JSON.stringify(list);
+  });
+})();
+</script>
+{% endblock %}

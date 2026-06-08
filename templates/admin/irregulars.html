@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>✦ 非常规活动</h1>
+  <p class="muted">唐奖、年检、招新面试等零散事务。按 <b>事件</b> 录入，每个事件下挂多名参与者，每人分别记录 A 类和 B 类小时数。</p>
+
+  <div class="toolbar">
+    <a class="btn btn-primary" href="{{ url_for('admin_irregular_new') }}">➕ 新建非常规活动事件</a>
+    <span class="muted small">当前学期：<b>{{ current_semester }}</b></span>
+  </div>
+
+  <div class="card">
+    <h2>📋 事件列表（{{ records|length }}）</h2>
+    {% if records %}
+    <div style="overflow-x:auto;">
+    <div class="table-responsive">
+<table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:60px;" class="center">ID</th>
+          <th style="width:110px;" class="center">日期</th>
+          <th>活动内容</th>
+          <th style="width:160px;">地点</th>
+          <th style="width:90px; background:#d3f9d8;" class="center">A类总(h)</th>
+          <th style="width:90px; background:#fff3bf;" class="center">B类总(h)</th>
+          <th style="width:80px;" class="center">参与人数</th>
+          <th style="width:100px;" class="center">学期</th>
+          <th style="width:200px;" class="center">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td class="center"><span class="num-badge n">#{{ r.id }}</span></td>
+          <td class="center cell-1line" title="{{ r.date }}">{{ r.date or '—' }}</td>
+          <td>
+            <b style="color:var(--primary-dark);">{{ r.content or '—' }}</b>
+            {% if r.content and r.content|length > 20 %}
+              <a class="expand-btn" onclick='showPopover("非常规活动 #{{ r.id }}", `{{ r.content|e }}`)'>展开</a>
+            {% endif %}
+          </td>
+          <td>
+            <span class="cell-1line" title="{{ r.location or '' }}">{{ r.location or '—' }}</span>
+            {% if r.location and r.location|length > 12 %}
+              <a class="expand-btn" onclick='showPopover("地点", `{{ r.location|e }}`)'>展开</a>
+            {% endif %}
+          </td>
+          <td class="center" style="background:#f8fff9;"><b style="color:#2b8a3e;">{{ '%.1f'|format(r.total_a_hours()) }}</b></td>
+          <td class="center" style="background:#fffef0;"><b style="color:#b08900;">{{ '%.1f'|format(r.total_b_hours()) }}</b></td>
+          <td class="center"><span class="num-badge p">{{ r.participant_count() }}</span></td>
+          <td class="center"><span class="sem-tag">{{ r.semester }}</span></td>
+          <td>
+            <div class="action-btns">
+              <a class="btn btn-xs" href="{{ url_for('admin_irregular_detail', iid=r.id) }}">👁 详情</a>
+              <a class="btn btn-xs" href="{{ url_for('admin_irregular_edit', iid=r.id) }}">✏️</a>
+              <form method="post" action="{{ url_for('admin_irregular_delete', iid=r.id) }}" style="display:inline" onsubmit="return confirm('确定删除？')">
+                <button class="btn btn-xs btn-danger" type="submit">🗑️</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="empty">暂无非常规活动</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+</div>
+    </div>
+    {% else %}
+    <p class="empty">暂无非常规活动，<a href="{{ url_for('admin_irregular_new') }}">立即创建第一个</a> →</p>
+    {% endif %}
+  </div>
+</section>
+
+<div id="popoverContainer"></div>
+
+<style>
+.sem-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fff5f8 0%, #ffe5ec 100%);
+  color: var(--primary-dark);
+  font-size: 11px;
+  font-weight: 600;
+}
+</style>
+
+<script>
+function showPopover(title, content) {
+  const container = document.getElementById('popoverContainer');
+  container.innerHTML = `
+    <div class="popover-mask" onclick="closePopover()"></div>
+    <div class="popover">
+      <button class="close-btn" onclick="closePopover()">×</button>
+      <h3>✦ ${title}</h3>
+      <p>${content}</p>
+    </div>
+  `;
+}
+function closePopover() {
+  document.getElementById('popoverContainer').innerHTML = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePopover(); });
+</script>
+{% endblock %}

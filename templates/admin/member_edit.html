@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>{% if member %}编辑成员 · {{ member.name }}{% else %}添加成员{% endif %}</h1>
+  <div class="card narrow">
+    <form method="post" class="form">
+      <div class="form-row">
+        <label>姓名 <span class="req">*</span></label>
+        <input type="text" name="name" value="{{ member.name if member else '' }}" required>
+      </div>
+      <div class="form-row">
+        <label>学号</label>
+        <input type="text" name="student_id" value="{{ member.student_id if member else '' }}" placeholder="例如：22301010001">
+      </div>
+      <div class="form-row">
+        <label>年级</label>
+        <input type="number" name="grade" value="{{ (member.grade if member else '').rstrip('级') }}" placeholder="2024" min="2000" max="2100" step="1">
+      </div>
+      <div class="form-row">
+        <label>部门</label>
+        <select name="department">
+          <option value="">-- 请选择 --</option>
+          {% for d in departments %}
+            <option value="{{ d }}" {% if member and member.department==d %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>身份 <span class="req">*</span></label>
+        <select name="identity">
+          <option value="社员" {% if not member or member.identity == '社员' %}selected{% endif %}>🧡 社员</option>
+          <option value="长期项目组成员" {% if member and member.identity == '长期项目组成员' %}selected{% endif %}>⭐ 长期项目组成员</option>
+        </select>
+        <small class="muted">社员可同时属于某个长期项目组；身份决定「成员管理」中的标签</small>
+      </div>
+      <div class="form-row">
+        <label>所属长期项目组（可空）</label>
+        <select name="long_term_group_id">
+          <option value="">-- 无（不归入任何长期项目组） --</option>
+          {% for g in long_term_groups %}
+            <option value="{{ g.id }}" {% if member and member.long_term_group_id == g.id %}selected{% endif %}>
+              {{ g.name }} · {{ g.description }}
+            </option>
+          {% endfor %}
+        </select>
+        <small class="muted">社员可同时属于一个长期项目组；统计「长期项目组小时数公布」会累加该成员所有时长</small>
+      </div>
+      <div class="form-row">
+        <label>手机号</label>
+        <input type="text" name="phone" value="{{ member.phone if member else '' }}">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">保存</button>
+        <a class="btn btn-ghost" href="{{ url_for('admin_members') }}">取消</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

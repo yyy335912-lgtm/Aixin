@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>📥 批量导入成员</h1>
+  <p class="muted">支持 .xlsx / .xls / .csv 文件，系统会自动识别表头列名。</p>
+
+  {% if error %}
+  <div class="card" style="border-color: var(--danger); background: #ffe3e3;">
+    <b>❌ {{ error }}</b>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>第一步：下载模板（推荐）</h2>
+    <p class="muted">使用标准模板可以避免识别错误。</p>
+    <form method="post" style="display:inline;">
+      <input type="hidden" name="action" value="download_template">
+      <button class="btn btn-primary" type="submit">📥 下载 Excel 模板</button>
+    </form>
+    <a class="btn btn-ghost" href="{{ url_for('admin_members') }}">← 返回成员列表</a>
+  </div>
+
+  <div class="card">
+    <h2>第二步：上传文件 <span style="font-weight:normal; color:#888;">或直接粘贴数据</span></h2>
+
+    <details style="margin-bottom:12px;">
+      <summary style="cursor:pointer; color:var(--primary); user-select:none;">
+        📋 <b>直接粘贴数据</b>（从 Excel/WPS 复制后粘贴到这里，免上传）
+      </summary>
+      <form method="post" class="form" style="margin-top:12px;">
+        <div class="form-row">
+          <label>粘贴区</label>
+          <textarea name="paste_text" rows="6" placeholder="从 Excel 复制后粘贴：
+姓名	年级	学号	部门	身份	长期项目组	手机号
+张三	2024级	22500000001	人资部	社员		13800000001
+李四	2024级	22500000002	宣传部	长期项目组成员	心暖陇原	13800000002" style="font-family:ui-monospace,Menlo,monospace; font-size:13px; width:100%;"></textarea>
+          <small class="muted">支持 Tab 分隔（Excel 默认复制格式）或逗号分隔（CSV）。第一行可为表头，也可为数据。</small>
+        </div>
+        <div class="form-actions">
+          <input type="hidden" name="action" value="preview">
+          <button class="btn btn-primary" type="submit">📋 解析粘贴数据</button>
+        </div>
+      </form>
+    </details>
+
+    <form method="post" enctype="multipart/form-data" class="form">
+      <div class="form-row">
+        <label>选择文件</label>
+        <input type="file" name="file" accept=".xlsx,.xls,.csv">
+        <small class="muted">
+          支持 .xlsx / .xls / .csv。第一行为表头（必填：姓名；可选：年级、学号、部门、身份、长期项目组、手机号）。
+          <br>💡 文件包含多个 sheet 时，系统会自动选数据最多的那个。
+        </small>
+      </div>
+      <div class="form-actions">
+        <input type="hidden" name="action" value="preview">
+        <button class="btn btn-primary" type="submit">📤 上传并预览</button>
+      </div>
+    </form>
+  </div>
+
+  {% if preview %}
+  <div class="card" style="border-color: var(--primary);">
+    <h2>第三步：确认列对应与导入</h2>
+    <p class="muted">
+      共解析到 <b>{{ preview.total }}</b> 条数据（已排除空行），下面预览前 {{ preview.rows|length }} 条。
+      <b>请确认每列对应的字段名</b>，未识别的列可不指定（将忽略）。
+    </p>
+
+    <form method="post" class="form">
+      <input type="hidden" name="action" value="confirm">
+
+      <h3>列对应</h3>
+      <div class="grid">
+        {% set field_choices = [
+          ('col_name', '姓名', preview.mapping.get('name', -1), True),
+          ('col_grade', '年级', preview.mapping.get('grade', -1), False),
+          ('col_sid', '学号', preview.mapping.get('student_id', -1), False),
+          ('col_dept', '部门', preview.mapping.get('department', -1), False),
+          ('col_identity', '身份（社员/长期）', preview.mapping.get('identity', -1), False),
+          ('col_ltgroup', '长期项目组（按名字）', preview.mapping.get('long_term_group', -1), False),
+          ('col_phone', '手机号', preview.mapping.get('phone', -1), False),
+        ] %}
+        {% for field_name, label, detected, required in field_choices %}
+        <div class="form-row">
+          <label>{{ label }}{% if required %} <span class="req">*</span>{% endif %}</label>
+          <select name="{{ field_name }}">
+            <option value="-1" {% if detected==-1 %}selected{% endif %}>-- 不导入 --</option>
+            {% for h in preview.headers %}
+            <option value="{{ loop.index0 }}" {% if detected==loop.index0 %}selected{% endif %}>第 {{ loop.index }} 列：{{ h or '(无标题)' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="form-row">
+        <label>部门为空时的默认部门</label>
+        <select name="default_department">
+          <option value="">-- 不设置 --</option>
+          {% for d in departments %}
+          <option value="{{ d }}">{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <h3>数据预览（前 {{ preview.rows|length }} 条 / 共 {{ preview.total }} 条）</h3>
+      <div style="overflow-x:auto;">
+      <div class="table-responsive">
+<table class="data-table compact">
+        <thead>
+          <tr>
+            <th>#</th>
+            {% for h in preview.headers %}
+            <th>{{ h or '(无标题)' }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in preview.rows %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            {% for c in r %}<td>{{ c }}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+</div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">✅ 确认导入 {{ preview.total }} 条</button>
+        <a class="btn btn-ghost" href="{{ url_for('admin_member_import') }}">取消</a>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

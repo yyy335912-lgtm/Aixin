@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}管理后台 · 浙大爱心社{% endblock %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>📊 后台总览</h1>
+  <p class="muted">欢迎回来 <b>{{ session.get('admin_name', '管理员') }}</b>！当前学期：<b>{{ current_semester }}</b></p>
+
+  {% if not me.is_super_admin and (me.permissions_list()|length <= 1) %}
+  <div class="card" style="background:linear-gradient(135deg,#fff8e1 0%,#fff3cd 100%); border-color:#ffc107;">
+    <h2 style="margin-top:0; color:#856404;">👋 欢迎加入管理员团队！</h2>
+    <p style="color:#856404; line-height:1.7;">
+      您目前仅有 <b>{{ me.permissions_list()|length }}</b> 项基础权限。如需管理其他模块，请联系<b>超级管理员</b>（杨海蓉）分配更多权限。<br>
+      在「<a href="{{ url_for('admin_profile') }}">我的资料</a>」中可以随时修改自己的密码。
+    </p>
+  </div>
+  {% endif %}
+
+  <div class="grid">
+    <div class="card stat-card">
+      <div class="stat-icon">👥</div>
+      <div class="stat-num">{{ stats.members }}</div>
+      <div class="stat-label">注册社员</div>
+      {% if _has('members') %}<a class="card-link" href="{{ url_for('admin_members') }}">管理 →</a>{% endif %}
+    </div>
+    <div class="card stat-card">
+      <div class="stat-icon">🌟</div>
+      <div class="stat-num">{{ stats.projects }}</div>
+      <div class="stat-label">启用项目</div>
+      {% if _has('projects') %}<a class="card-link" href="{{ url_for('admin_projects') }}">管理 →</a>{% endif %}
+    </div>
+    <div class="card stat-card">
+      <div class="stat-icon">📖</div>
+      <div class="stat-num">{{ stats.activities }}</div>
+      <div class="stat-label">活动总场次</div>
+      {% if _has('activities') %}<a class="card-link" href="{{ url_for('admin_activities') }}">管理 →</a>{% endif %}
+    </div>
+    <div class="card stat-card" style="background:linear-gradient(135deg,#f8fff9,#d3f9d8);">
+      <div class="stat-icon" style="color:#2b8a3e;">🟢</div>
+      <div class="stat-num" style="color:#2b8a3e;">{{ '%.1f'|format(stats.a_hours) }}</div>
+      <div class="stat-label">A类小时数</div>
+    </div>
+    <div class="card stat-card" style="background:linear-gradient(135deg,#fffef0,#fff3bf);">
+      <div class="stat-icon" style="color:#b08900;">🟡</div>
+      <div class="stat-num" style="color:#b08900;">{{ '%.1f'|format(stats.b_hours) }}</div>
+      <div class="stat-label">B类小时数</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-icon">🧡</div>
+      <div class="stat-num">{{ '%.1f'|format(stats.points) }}</div>
+      <div class="stat-label">积分总和</div>
+      {% if _has('stats') %}<a class="card-link" href="{{ url_for('admin_stats') }}">查看 →</a>{% endif %}
+    </div>
+    <div class="card stat-card">
+      <div class="stat-icon">🔍</div>
+      <div class="stat-num">{{ stats.queries }}</div>
+      <div class="stat-label">查询次数</div>
+    </div>
+    <div class="card stat-card {% if unsigned_count > 0 %}stat-warn{% endif %}">
+      <div class="stat-icon">✉️</div>
+      <div class="stat-num">{{ unsigned_count }}</div>
+      <div class="stat-label">未签收社员</div>
+      {% if _has('logs') %}<a class="card-link" href="{{ url_for('admin_logs') }}">查看 →</a>{% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>⚡ 快捷操作</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      {% if _has('activities') %}<a class="btn btn-primary" href="{{ url_for('admin_activity_new') }}">➕ 登记新活动</a>{% endif %}
+      {% if _has('irregulars') %}<a class="btn btn-ghost" href="{{ url_for('admin_irregular_new') }}">✦ 新建非常规事件</a>{% endif %}
+      {% if _has('members') %}<a class="btn btn-ghost" href="{{ url_for('admin_member_new') }}">👤 添加成员</a>{% endif %}
+      {% if _has('positions') %}<a class="btn btn-ghost" href="{{ url_for('admin_position_new') }}">🎖️ 添加任职积分</a>{% endif %}
+      {% if _has('activities') %}<a class="btn btn-ghost" href="{{ url_for('admin_activity_import') }}">📥 批量导入活动</a>{% endif %}
+      {% if _has('members') %}<a class="btn btn-ghost" href="{{ url_for('admin_member_import') }}">📥 批量导入成员</a>{% endif %}
+      {% if _has('export') %}<a class="btn btn-ghost" href="{{ url_for('admin_export') }}">📤 导出 Excel</a>{% endif %}
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <h2>📅 最近活动</h2>
+      {% if recent_activities %}
+      <ul class="event-list">
+        {% for a in recent_activities %}
+        <li>
+          <a href="{{ url_for('admin_activity_detail', aid=a.id) }}">
+            <span class="proj-tag">{{ a.project.name }}</span>
+            <span class="cell-1line" style="display:inline-block; max-width:240px; vertical-align:middle;">{{ a.content or a.date }}</span>
+          </a>
+          <span class="muted small">{{ a.date }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="empty">暂无活动</p>{% endif %}
+    </div>
+
+    <div class="card">
+      <h2>✅ 最近签收</h2>
+      {% if recent_signoffs %}
+      <ul class="event-list">
+        {% for s in recent_signoffs %}
+        <li>
+          <b>{{ s.signoff_member.name if s.signoff_member else '?' }}</b>
+          <span class="muted small">{{ s.signoff_time }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="empty">暂无签收</p>{% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

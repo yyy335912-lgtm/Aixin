@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="hero-inner">
+    <img class="hero-logo" src="{{ url_for('static', filename='img/club_logo_hero.png') }}" alt="ZJU Club of Heart Caring">
+    <h1>ZJU Club of Heart Caring</h1>
+    <p class="hero-sub">浙江大学学生爱心社 · 志愿服务积分系统</p>
+    <p class="hero-motto">服务社会 · 奉献爱心 · 推己及人 · 薪火相传</p>
+    <p class="hero-motto-2">追求人类心中无差别的善</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary btn-lg" href="{{ url_for('query') }}">🔍 查询我的积分</a>
+      <a class="btn btn-ghost btn-lg" href="{{ url_for('long_term_groups_public') }}">🧡 长期项目组公布</a>
+    </div>
+  </div>
+</section>
+
+<section class="grid">
+  <div class="card stat-card">
+    <div class="stat-icon">👥</div>
+    <div class="stat-num">{{ stats.members }}</div>
+    <div class="stat-label">注册社员</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-icon">🌟</div>
+    <div class="stat-num">{{ stats.projects }}</div>
+    <div class="stat-label">品牌项目</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-icon">📖</div>
+    <div class="stat-num">{{ stats.activities }}</div>
+    <div class="stat-label">志愿活动</div>
+  </div>
+  <div class="card stat-card" style="background:linear-gradient(135deg,#f8fff9,#d3f9d8);">
+    <div class="stat-icon" style="color:#2b8a3e;">🟢</div>
+    <div class="stat-num" style="color:#2b8a3e;">{{ '%.1f'|format(stats.a_hours) }}</div>
+    <div class="stat-label">A类公益小时</div>
+  </div>
+  <div class="card stat-card" style="background:linear-gradient(135deg,#fffef0,#fff3bf);">
+    <div class="stat-icon" style="color:#b08900;">🟡</div>
+    <div class="stat-num" style="color:#b08900;">{{ '%.1f'|format(stats.b_hours) }}</div>
+    <div class="stat-label">B类事务小时</div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>🏅 积分龙虎榜 · Top 10</h2>
+  {% if top %}
+  <div class="leaderboard">
+    {% for item in top %}
+    <div class="lb-row rank-{{ loop.index }}">
+      <span class="lb-rank">{% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}</span>
+      <div class="lb-info">
+        <span class="lb-name">{{ item.name }}</span>
+        <span class="lb-meta">{{ item.grade }} · {{ item.dept }}</span>
+      </div>
+      <span class="lb-points">{{ '%.1f'|format(item.points) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">暂无数据</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>📅 近期活动</h2>
+  {% if recent %}
+  <div class="recent-activities">
+    {% for a in recent %}
+    <div class="ra-item">
+      <div class="ra-left">
+        <span class="ra-date">{{ a.date or '—' }}</span>
+        <span class="ra-proj">{{ a.project.name }}</span>
+      </div>
+      <div class="ra-mid">
+        <span class="ra-content">{{ a.content or '' }}</span>
+        <span class="ra-meta">{{ a.time or '' }}{% if a.location %} · {{ a.location }}{% endif %}</span>
+      </div>
+      <div class="ra-right">
+        <span class="ra-hours">A {{ '%.1f'|format(a.total_a_hours()) }}h</span>
+        <span class="ra-hours b">B {{ '%.1f'|format(a.total_b_hours()) }}h</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">暂无活动记录</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>📖 系统说明</h2>
+  <ul class="info-list">
+    <li>本系统用于管理 <b>ZJU Club of Heart Caring · 浙江大学学生爱心社</b>成员的志愿服务积分与时长。</li>
+    <li>每位社员通过 <b>学号</b> + <b>姓名</b>（姓名用于审计）即可在 <a href="{{ url_for('query') }}">积分查询</a> 页面查看个人明细。</li>
+    <li>积分规则：<b>总积分 = A类小时数 + B类小时数 / 2</b>。
+      <ul>
+        <li><span class="proj-tag" style="background:#d3f9d8;color:#2b8a3e;">A类</span> 公益服务类：1 小时 = 1 积分</li>
+        <li><span class="proj-tag" style="background:#fff3bf;color:#b08900;">B类</span> 事务工作类：1 小时 = 0.5 积分</li>
+      </ul>
+    </li>
+    <li>查询到数据后请点击「确认签收」，方便社团统计已查看人员。</li>
+    <li>管理员可通过账号密码登录后台，管理成员、活动、积分、统计等。</li>
+    <li>公开查询请使用您的<b>学号</b> + 姓名（姓名用于审计记录，不用于身份核验）。</li>
+    <li>可前往 <a href="{{ url_for('long_term_groups_public') }}">长期项目组小时数公布</a> 查看各项目组累计贡献。</li>
+  </ul>
+</section>
+
+<style>
+.hero-motto-2 {
+  color: #fff; font-size: 14px; font-style: italic; opacity: 0.85;
+  margin-top: 8px; letter-spacing: 1px;
+}
+.recent-activities { display: flex; flex-direction: column; gap: 6px; }
+.ra-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 10px;
+  background: #fcfcfd; border: 1px solid var(--border);
+  transition: background .15s;
+}
+.ra-item:hover { background: #fff5f8; }
+.ra-left { min-width: 110px; flex-shrink: 0; }
+.ra-date { font-size: 12px; color: var(--text-muted); display: block; line-height: 1.3; }
+.ra-proj { font-size: 13px; font-weight: 700; color: var(--primary-dark); }
+.ra-mid { flex: 1; min-width: 0; }
+.ra-content { font-size: 13px; display: block; line-height: 1.35; word-break: break-word; }
+.ra-meta { font-size: 11px; color: var(--text-muted); display: block; margin-top: 1px; }
+.ra-right { text-align: right; flex-shrink: 0; min-width: 82px; }
+.ra-hours { font-size: 11px; display: block; color: #2b8a3e; font-weight: 600; }
+.ra-hours.b { color: #b08900; }
+@media (max-width: 600px) {
+  .ra-item { flex-wrap: wrap; gap: 4px 8px; }
+  .ra-left { min-width: 80px; }
+  .ra-right { min-width: 70px; }
+}
+</style>
+{% endblock %}

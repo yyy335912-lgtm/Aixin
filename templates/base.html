@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{% block title %}ZJU Club of Heart Caring · 志愿服务积分系统{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/club_logo_32.png') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="{{ url_for('index') }}">
+        <span class="brand-logo"><img src="{{ url_for('static', filename='img/club_logo_nav.png') }}" alt="ZJU Club of Heart Caring" width="44" height="44"></span>
+        <span class="brand-text">
+          <span class="brand-title">ZJU Club of Heart Caring</span>
+          <span class="brand-sub">浙江大学学生爱心社 · 志愿服务积分系统</span>
+        </span>
+      </a>
+      <button class="topnav-toggle" type="button" onclick="toggleMobileNav()" aria-label="菜单">☰</button>
+      <nav class="topnav" id="topnav">
+        <a href="{{ url_for('index') }}" class="{% if request.endpoint=='index' %}active{% endif %}">首页</a>
+        <a href="{{ url_for('query') }}" class="{% if request.endpoint in ['query','query_result'] %}active{% endif %}">积分查询</a>
+        <a href="{{ url_for('long_term_groups_public') }}" class="{% if request.endpoint=='long_term_groups_public' %}active{% endif %}">🧡 长期项目组公布</a>
+        {% if session.is_admin %}
+          <a href="{{ url_for('admin_dashboard') }}" class="{% if request.path.startswith('/admin') %}active{% endif %}">管理后台</a>
+          <a href="{{ url_for('admin_logout') }}">退出</a>
+        {% else %}
+          <a href="{{ url_for('admin_login') }}">管理员登录</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container">
+        {% for category, msg in messages %}
+          <div class="flash flash-{{ category }}">{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main class="page">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <p class="motto-line">「 服务社会，奉献爱心，推己及人，薪火相传 」</p>
+    <p>ZJU Club of Heart Caring · 浙江大学学生爱心社 &nbsp;|&nbsp; 当前学期：{{ current_semester }}</p>
+  </footer>
+  <script>
+    function toggleMobileNav() {
+      const nav = document.getElementById('topnav');
+      nav.classList.toggle('open');
+    }
+    document.addEventListener('click', function(e) {
+      const nav = document.getElementById('topnav');
+      const btn = document.querySelector('.topnav-toggle');
+      if (!nav || !btn) return;
+      if (!nav.contains(e.target) && !btn.contains(e.target)) {
+        nav.classList.remove('open');
+      }
+    });
+  </script>
+</body>
+</html>

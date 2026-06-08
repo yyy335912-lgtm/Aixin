@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<section class="content-with-sidebar">
+  <h1>⚡ 管理员白名单</h1>
+  <p class="muted">
+    只有白名单内的成员可登录后台。超级管理员可预添加/批准成员成为管理员。
+    当前 <b style="color:#d6336c;">👑 超管 {{ super_count }} 人</b>，普管 {{ norm_count }} 人，
+    <b style="color:#e67700;">⏳ 待审批 {{ pending_count }} 人</b>，激活 {{ active_count }} 人。
+  </p>
+
+  <div class="card">
+    <h2>➕ 预添加管理员</h2>
+    <p class="muted" style="font-size:13px;">
+      输入姓名即可从成员库自动匹配，其他均为选填。对方在登录页设置密码后即可使用。
+    </p>
+    <form method="post" action="{{ url_for('admin_whitelist_add') }}" class="form">
+      <div class="grid" style="grid-template-columns:1fr 1fr 1fr auto; align-items:end;">
+        <div class="form-row">
+          <label>姓名 <span class="req">*</span></label>
+          <input type="text" name="name" id="addName" required placeholder="输入姓名自动匹配" list="memberList" autocomplete="off">
+          <datalist id="memberList"></datalist>
+        </div>
+        <div class="form-row">
+          <label>学号 <span class="muted">(自动匹配)</span></label>
+          <input type="text" name="student_id" id="addSid" placeholder="选填，自动补全" readonly style="background:#f9f9f9;">
+        </div>
+        <div class="form-row">
+          <label>密码</label>
+          <input type="password" name="password" minlength="6" placeholder="留空=待激活">
+        </div>
+        <div class="form-row">
+          <label>&nbsp;</label>
+          <button class="btn btn-primary" type="submit">+ 添加</button>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:10px;">
+        <label>角色</label>
+        <div style="display:flex; gap:20px; align-items:center;">
+          <label style="font-weight:400; cursor:pointer;">
+            <input type="radio" name="is_super_admin" value="0" checked onchange="toggleAddPerms()"> 普通管理员
+          </label>
+          <label style="font-weight:400; cursor:pointer;">
+            <input type="radio" name="is_super_admin" value="1" onchange="toggleAddPerms()"> 👑 超级管理员
+          </label>
+        </div>
+      </div>
+      <div class="form-row" id="addPermsRow" style="margin-top:6px;">
+        <label>
+          <span>权限（普管默认「仪表盘」）</span>
+          <a href="javascript:void(0)" onclick="toggleAllPerms('add', true)" style="font-size:12px; margin-left:8px;">☑ 全选</a>
+          <a href="javascript:void(0)" onclick="toggleAllPerms('add', false)" style="font-size:12px; margin-left:4px;">☐ 清空</a>
+        </label>
+        <div class="perm-grid">
+          {% for key, label, hint in ADMIN_PERMISSIONS %}
+            {% if key not in ['profile', 'export', 'settings'] %}
+            <label class="perm-item">
+              <input type="checkbox" name="permissions" value="{{ key }}" data-perm-add
+                     {% if key == 'dashboard' %}checked{% endif %}>
+              <span><b>{{ label }}</b></span>
+            </label>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {% if pending_admins %}
+  <div class="card" style="background:linear-gradient(135deg,#fff8e1 0%,#fff3cd 100%); border-color:#ffc107;">
+    <h2>⏳ 待审批申请（{{ pending_admins|length }}）</h2>
+    <p class="muted" style="font-size:13px;">成员通过登录页提交了申请，需您批准或拒绝。</p>
+    <div style="overflow-x:auto;">
+    <div class="table-responsive">
+<table class="data-table">
+      <colgroup>
+        <col style="width:50px;">
+        <col style="width:120px;">
+        <col style="width:140px;">
+        <col>
+        <col style="width:140px;">
+        <col style="width:280px;">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="center">#</th>
+          <th>姓名</th>
+          <th class="center">学号</th>
+          <th>申请说明</th>
+          <th>提交时间</th>
+          <th class="center">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in pending_admins %}
+        <tr>
+          <td class="center"><span class="muted">{{ loop.index }}</span></td>
+          <td><b style="color:var(--primary-dark);">{{ a.name }}</b></td>
+          <td class="center"><span class="muted small">已脱敏</span></td>
+          <td><span class="small">{{ a.application_message or '（无）' }}</span></td>
+          <td><span class="muted small">{{ a.created_at.strftime('%Y-%m-%d %H:%M') if a.created_at else '—' }}</span></td>
+          <td>
+            <div class="action-btns" style="justify-content:center; flex-wrap:wrap; gap:4px;">
+              <button class="btn btn-xs btn-primary" type="button"
+                      onclick="showApprove({{ a.id }}, '{{ a.name|e }}')">✅ 批准</button>
+              <form method="post" action="{{ url_for('admin_whitelist_reject', aid=a.id) }}" style="display:inline"
+                    onsubmit="return confirm('确定拒绝【{{ a.name }}】的申请？此操作不可恢复！')">
+                <button class="btn btn-xs btn-danger" type="submit">✖ 拒绝</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>现有管理员（{{ admins|length }}）</h2>
+    <div style="overflow-x:auto;">
+    <div class="table-responsive">
+<table class="data-table">
+      <colgroup>
+        <col style="width:50px;">
+        <col style="width:110px;">
+        <col style="width:90px;">
+        <col style="width:80px;">
+        <col>
+        <col style="width:130px;">
+        <col style="width:200px;">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="center">#</th>
+          <th>姓名</th>
+          <th class="center">角色</th>
+          <th class="center">状态</th>
+          <th>权限</th>
+          <th>上次登录</th>
+          <th class="center">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in admins %}
+        <tr>
+          <td class="center"><span class="muted">{{ loop.index }}</span></td>
+          <td class="cell-1line" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            <b style="color:var(--primary-dark);">{{ a.name }}</b>
+            {% if a.id == session.admin_id %}<span class="status-badge ok" style="margin-left:4px;">我</span>{% endif %}
+            {% if a.is_root %}<span class="status-badge gold" style="margin-left:4px;">👑 创始人</span>{% endif %}
+          </td>
+          <td class="center">
+            {% if a.is_super_admin %}
+              <span style="color:#d6336c; font-weight:600;">👑 超管</span>
+            {% else %}
+              <span class="muted">普管</span>
+            {% endif %}
+          </td>
+          <td class="center">
+            {% if a.status == 'active' %}
+              <span class="status-badge ok" title="可登录">活跃</span>
+            {% elif a.status == 'approved' %}
+              <span class="status-badge warn" title="已批准，待设置密码">待激活</span>
+            {% elif a.status == 'pending' %}
+              <span class="status-badge warn">审批中</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if a.is_super_admin %}
+              <span class="muted small">👑 全权限</span>
+            {% else %}
+              {% set pl = a.permissions_list() %}
+              {% if pl %}
+                <details>
+                  <summary><b style="color:var(--primary-dark);">{{ pl|length }} 项</b> · 查看/编辑 ▾</summary>
+                  <form method="post" action="{{ url_for('admin_whitelist_set_permissions', aid=a.id) }}" class="perm-edit-form" style="margin-top:6px; padding:6px 8px; background:#fafafa; border-radius:6px;">
+                    <div class="perm-grid" style="font-size:12px;">
+                      {% for key, label, hint in ADMIN_PERMISSIONS %}
+                        {% if key not in ['profile', 'export', 'settings'] %}
+                        <label class="perm-item">
+                          <input type="checkbox" name="permissions" value="{{ key }}" {% if key in pl %}checked{% endif %}>
+                          <span>{{ label }}</span>
+                        </label>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    <div style="margin-top:6px; display:flex; gap:6px;">
+                      <button class="btn btn-xs btn-primary" type="submit">💾 保存</button>
+                      <a href="javascript:void(0)" onclick="toggleFormPerms(this, true)" style="font-size:11px; line-height:24px;">☑ 全选</a>
+                      <a href="javascript:void(0)" onclick="toggleFormPerms(this, false)" style="font-size:11px; line-height:24px;">☐ 清空</a>
+                    </div>
+                  </form>
+                </details>
+              {% else %}
+                <span class="muted small">— 无权限 —</span>
+                <details style="margin-top:4px;">
+                  <summary style="font-size:12px; color:var(--primary-dark); cursor:pointer;">➕ 分配权限</summary>
+                  <form method="post" action="{{ url_for('admin_whitelist_set_permissions', aid=a.id) }}" class="perm-edit-form" style="margin-top:6px; padding:6px 8px; background:#fafafa; border-radius:6px;">
+                    <div class="perm-grid" style="font-size:12px;">
+                      {% for key, label, hint in ADMIN_PERMISSIONS %}
+                        {% if key not in ['profile', 'export', 'settings'] %}
+                        <label class="perm-item">
+                          <input type="checkbox" name="permissions" value="{{ key }}">
+                          <span>{{ label }}</span>
+                        </label>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    <div style="margin-top:6px;">
+                      <button class="btn btn-xs btn-primary" type="submit">💾 保存</button>
+                    </div>
+                  </form>
+                </details>
+              {% endif %}
+            {% endif %}
+          </td>
+          <td>
+            {% if a.last_login_at %}
+              <span class="muted small">{{ a.last_login_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            {% else %}
+              <span class="muted small">从未登录</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="action-btns" style="justify-content:center; flex-wrap:wrap; gap:4px;">
+              {% if a.is_awaiting_activation() %}
+                <button class="btn btn-xs btn-primary" type="button"
+                        onclick="setPwFor({{ a.id }}, '{{ a.name|e }}')">🔑 设密码</button>
+                <form id="setPwForm-{{ a.id }}" method="post"
+                      action="{{ url_for('admin_whitelist_reset_password', aid=a.id) }}" style="display:none;">
+                  <input type="hidden" name="new_password" value="">
+                </form>
+              {% endif %}
+              {% if a.is_root and a.id != session.admin_id %}
+                <span class="muted small" title="创始人只能由本人修改/删除">🔒</span>
+              {% else %}
+                <form method="post" action="{{ url_for('admin_whitelist_toggle_super', aid=a.id) }}" style="display:inline">
+                  <button class="btn btn-xs btn-ghost" type="submit"
+                    {% if a.id == session.admin_id and a.is_super_admin %}disabled title="不能取消自己"{% endif %}
+                    {% if a.is_root and a.id != session.admin_id %}disabled title="创始人不可降级"{% endif %}>
+                    {% if a.is_super_admin %}⬇ 降级{% else %}⬆ 升级{% endif %}
+                  </button>
+                </form>
+                {% if not (a.id == session.admin_id and not a.is_root) %}
+                  <button class="btn btn-xs" type="button" onclick="resetPw({{ a.id }}, '{{ a.name|e }}')">🔑 重置</button>
+                  <form id="resetPwForm-{{ a.id }}" method="post"
+                    action="{{ url_for('admin_whitelist_reset_password', aid=a.id) }}" style="display:none;">
+                    <input type="hidden" name="new_password" value="">
+                  </form>
+                {% endif %}
+                {% if a.is_root and a.id == session.admin_id %}
+                  <a class="btn btn-xs btn-danger" href="{{ url_for('admin_profile') }}">🗑️ 自删</a>
+                {% else %}
+                  <form method="post" action="{{ url_for('admin_whitelist_delete', aid=a.id) }}" style="display:inline"
+                    onsubmit="return confirm('确定删除管理员【{{ a.name }}】？此操作不可恢复！')">
+                    <button class="btn btn-xs btn-danger" type="submit"
+                      {% if a.id == session.admin_id and not a.is_root %}disabled title="请前往「我的资料」删除自己的账号"{% endif %}>🗑️</button>
+                  </form>
+                {% endif %}
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+</div>
+    </div>
+  </div>
+
+  <div class="card" style="background:linear-gradient(135deg,#fff8e1 0%,#fff3cd 100%); border-color:#ffc107;">
+    <h3 style="margin-top:0;">⚠️ 白名单管理须知</h3>
+    <ul style="line-height:1.8; color:#666; margin: 0;">
+      <li>系统至少需要保留 <b>1 位超级管理员</b>，不能降级或删除最后一位超管</li>
+      <li>普通管理员不能删除自己，需到「我的资料」操作</li>
+      <li><b>👑 创始人</b>只能由本人修改/删除，他人不可操作</li>
+      <li><b>预添加</b>（无密码）= 待激活，对方在登录页可自行设置密码激活</li>
+      <li><b>预添加</b>（有密码）= 直接激活，对方立即可用</li>
+      <li><b>申请注册</b>流程：成员在登录页提交 → 您在「⏳ 待审批」批准 → 对方在登录页设置密码</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 审批弹窗 -->
+<div id="approveModal" class="popover-mask" style="display:none; align-items:center; justify-content:center;">
+  <div class="card narrow" style="max-width:480px; margin:auto;">
+    <h2 id="approveTitle">✅ 批准申请</h2>
+    <p class="muted" style="font-size:13px;">为申请人设置角色、权限和初始密码。密码留空 = 待激活，对方需在登录页自行设置。</p>
+    <form method="post" id="approveForm" class="form">
+      <div class="form-row">
+        <label>角色</label>
+        <select name="is_super_admin">
+          <option value="0">普通管理员</option>
+          <option value="1">👑 超级管理员（全权限）</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>初始密码（≥6 位，留空 = 待激活）</label>
+        <input type="password" name="password" minlength="6" placeholder="留空=对方自行设置">
+      </div>
+      <div class="form-row" id="approvePerms">
+        <label>权限（仅普管生效）</label>
+        <div class="perm-grid">
+          {% for key, label, hint in ADMIN_PERMISSIONS %}
+            {% if key not in ['profile', 'export', 'settings'] %}
+            <label class="perm-item">
+              <input type="checkbox" name="permissions" value="{{ key }}" data-perm-approve>
+              <span>{{ label }}</span>
+            </label>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <small class="muted">未勾选 → 该普管登录后只能访问：我的资料 / 退出</small>
+      </div>
+      <div class="form-actions" style="display:flex; gap:8px;">
+        <button class="btn btn-primary" type="submit" style="flex:1;">✅ 批准并通知</button>
+        <a class="btn btn-ghost" href="javascript:hideApprove()">取消</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.perm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+.perm-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: 6px;
+  background: #f8f8f8; font-size: 13px;
+  cursor: pointer;
+}
+.perm-item:hover { background: #fff0f6; }
+.perm-item input { transform: scale(1.05); cursor: pointer; }
+.perm-edit-form summary { font-size: 13px; }
+.perm-edit-form summary::-webkit-details-marker { font-size: 10px; }
+.status-badge.gold {
+  background: linear-gradient(135deg, #ffd700, #ffb700);
+  color: #5a3d00; padding: 1px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 700;
+}
+.status-badge.warn { background: #fff3cd; color: #856404; padding: 1px 8px; border-radius: 10px; font-size: 11px; }
+</style>
+
+<script>
+var MEMBERS = {{ members_json|safe }};
+
+// 姓名输入自动补全学号
+document.addEventListener('DOMContentLoaded', function() {
+  var dl = document.getElementById('memberList');
+  MEMBERS.forEach(function(m) {
+    var opt = document.createElement('option');
+    opt.value = m.name + ' (' + m.student_id + ')';
+    dl.appendChild(opt);
+  });
+});
+document.getElementById('addName').addEventListener('input', function() {
+  var v = this.value.trim();
+  var sid = document.getElementById('addSid');
+  // 尝试精确匹配
+  var match = MEMBERS.filter(function(m) { return m.name === v; });
+  if (match.length === 1) {
+    sid.value = match[0].student_id;
+    sid.style.background = '#e8f5e9';
+  } else {
+    sid.value = '';
+    sid.style.background = '#f9f9f9';
+  }
+});
+
+function toggleAddPerms() {
+  var isSuper = document.querySelector('input[name="is_super_admin"]:checked').value === '1';
+  document.getElementById('addPermsRow').style.display = isSuper ? 'none' : '';
+}
+toggleAddPerms();
+
+function resetPw(aid, name) {
+  const pw = prompt(`为 ${name} 重置密码（≥6 位）:`);
+  if (pw === null) return;
+  if (pw.length < 6) { alert('密码至少 6 位'); return; }
+  if (!confirm(`确定将 ${name} 的密码重置为新密码吗？`)) return;
+  const f = document.getElementById('resetPwForm-' + aid);
+  f.querySelector('input[name="new_password"]').value = pw;
+  f.submit();
+}
+function setPwFor(aid, name) {
+  const pw = prompt(`为 ${name} 设置初始密码（≥6 位，留空=待对方自行设置）:`);
+  if (pw === null) return;
+  if (pw === "") {
+    alert('已保持"待激活"状态。对方可在登录页自行设置密码。');
+    return;
+  }
+  if (pw.length < 6) { alert('密码至少 6 位'); return; }
+  if (!confirm(`确定将 ${name} 的密码设置为该密码吗？`)) return;
+  const f = document.getElementById('setPwForm-' + aid);
+  f.querySelector('input[name="new_password"]').value = pw;
+  f.submit();
+}
+function toggleAllPerms(scope, checked) {
+  const sel = scope === 'add' ? '[data-perm-add]' : (scope === 'approve' ? '[data-perm-approve]' : null);
+  if (sel) {
+    document.querySelectorAll(sel).forEach(c => c.checked = checked);
+  }
+}
+function toggleFormPerms(link, checked) {
+  const form = link.closest('form');
+  form.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = checked);
+}
+function showApprove(aid, name) {
+  const m = document.getElementById('approveModal');
+  document.getElementById('approveTitle').innerText = '✅ 批准 ' + name + ' 的申请';
+  document.getElementById('approveForm').action = '/admin/whitelist/' + aid + '/approve';
+  m.style.display = 'flex';
+}
+function hideApprove() {
+  document.getElementById('approveModal').style.display = 'none';
+}
+document.getElementById('approveModal').addEventListener('click', function(e) {
+  if (e.target === this) hideApprove();
+});
+</script>
+{% endblock %}
