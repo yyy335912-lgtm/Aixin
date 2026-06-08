@@ -31,13 +31,21 @@ def create_app():
     app = Flask(__name__)
     db_path = os.path.join(os.path.dirname(__file__), "data", "aixin.db")
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    db_url = os.environ.get("DATABASE_URL") or f"sqlite:///{db_path}"
+    if db_url.startswith("postgres"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+        }
+    else:
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "connect_args": {"check_same_thread": False},
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+        }
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "connect_args": {"check_same_thread": False},
-        "pool_pre_ping": True,
-        "pool_recycle": 300,
-    }
     app.config["SECRET_KEY"] = "zju-aixin-secret-2026"
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
 
@@ -66,13 +74,14 @@ def create_app():
             from sqlalchemy import event
             @event.listens_for(db.engine, "connect")
             def _set_sqlite_pragma(dbapi_connection, connection_record):
-                cursor = dbapi_connection.cursor()
-                cursor.execute("PRAGMA journal_mode=WAL")
-                cursor.execute("PRAGMA busy_timeout=5000")
-                cursor.execute("PRAGMA synchronous=NORMAL")
-                cursor.execute("PRAGMA cache_size=-8000")
-                cursor.execute("PRAGMA temp_store=MEMORY")
-                cursor.close()
+                if db_url.startswith("sqlite"):
+                    cursor = dbapi_connection.cursor()
+                    cursor.execute("PRAGMA journal_mode=WAL")
+                    cursor.execute("PRAGMA busy_timeout=5000")
+                    cursor.execute("PRAGMA synchronous=NORMAL")
+                    cursor.execute("PRAGMA cache_size=-8000")
+                    cursor.execute("PRAGMA temp_store=MEMORY")
+                    cursor.close()
         except Exception:
             pass
 
